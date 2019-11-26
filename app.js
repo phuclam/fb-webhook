@@ -27,7 +27,8 @@ app.use(express.static('public'));
 //Socket.io
 
 const server = require('https').createServer(app);
-const io = require('socket.io')(server);
+const socket = require('socket.io');
+const io = socket.listen(server);
 io.configure(function () {
     io.set("transports", ["xhr-polling"]);
     io.set("polling duration", 10);
@@ -37,7 +38,7 @@ server.listen(3000, function () {
     console.log('Socket is listening port 3000');
 });
 
-io.on('connection', (socket) => {
+io.sockets.on('connection', (socket) => {
     console.log('Client connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
 });
