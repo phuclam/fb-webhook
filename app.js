@@ -73,7 +73,7 @@ app.get('/webhook', function (req, res) {
 });
 
 app.get('/test-send', function (req, res) {
-    console.log(req);
+    console.log(req.query['id']);
     //sendTextMessage('3268673749869750', 'This is a message from my app!');
 });
 
