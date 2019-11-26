@@ -28,9 +28,11 @@ app.use(express.static('public'));
 
 const server = require('https').createServer(app);
 const io = require('socket.io')(server);
-io.on('connection', () => {
-    console.log('Socket is now connected');
+io.configure(function () {
+    io.set("transports", ["xhr-polling"]);
+    io.set("polling duration", 10);
 });
+
 server.listen(3000, function () {
     console.log('Socket is listening port 3000');
 });
