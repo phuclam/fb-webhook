@@ -28,6 +28,9 @@ app.use(express.static('public'));
 var server = require('http').createServer(app);
 var io = require('socket.io')(server);
 
+io.set("transports", ["xhr-polling"]);
+io.set("polling duration", 10);
+
 server.listen(3000, function () {
     console.log('Socket is listening port 3000');
 });
