@@ -26,8 +26,8 @@ app.use(express.static('public'));
 
 //Socket.io
 
-//const server = require('http').createServer(app);
-const io = require('socket.io')(app);
+const server = require('https').createServer(app);
+const io = require('socket.io')(server);
 io.on('connection', () => {
     console.log('Socket is now connected');
 });
