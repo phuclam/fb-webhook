@@ -31,7 +31,7 @@ var io = require('socket.io')(server);
 io.set("transports", ["xhr-polling"]);
 io.set("polling duration", 10);
 
-server.listen(3000, function () {
+server.listen(8080, function () {
     console.log('Socket is listening port 3000');
 });
 
