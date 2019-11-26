@@ -25,20 +25,14 @@ app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
 
 //Socket.io
-
-const server = require('https').createServer(app);
-const socket = require('socket.io');
-const io = socket.listen(server);
-io.configure(function () {
-    io.set("transports", ["xhr-polling"]);
-    io.set("polling duration", 10);
-});
+var server = require('http').createServer(app);
+var io = require('socket.io')(server);
 
 server.listen(3000, function () {
     console.log('Socket is listening port 3000');
 });
 
-io.sockets.on('connection', (socket) => {
+io.on('connection', (socket) => {
     console.log('Client connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
 });
