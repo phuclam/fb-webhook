@@ -24,6 +24,20 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
 
+//Socket.io
+
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
+io.on('connection', () => {
+    console.log('Socket is now connected');
+});
+server.listen(3000, function () {
+    console.log('Socket is listening port 3000');
+});
+
+io.on('sendMessage', function (senderID, messageText) {
+    sendTextMessage(senderID, messageText);
+});
 /*
  * Be sure to setup your config values before running this code. You can
  * set them using environment variables or modifying the config file in /config.
@@ -322,6 +336,7 @@ function receivedMessage(event) {
     } else if (messageAttachments) {
         sendTextMessage(senderID, "Message with attachment received");
     }
+    io.emit('receivedMessage', event);
 }
 
 
