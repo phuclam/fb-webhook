@@ -26,8 +26,8 @@ app.use(express.static('public'));
 
 //Socket.io
 
-const server = require('http').createServer(app);
-const io = require('socket.io')(server);
+//const server = require('http').createServer(app);
+const io = require('socket.io')(app);
 io.on('connection', () => {
     console.log('Socket is now connected');
 });
@@ -35,9 +35,16 @@ server.listen(3000, function () {
     console.log('Socket is listening port 3000');
 });
 
+io.on('connection', (socket) => {
+    console.log('Client connected');
+    socket.on('disconnect', () => console.log('Client disconnected'));
+});
+
 io.on('sendMessage', function (senderID, messageText) {
     sendTextMessage(senderID, messageText);
 });
+
+
 /*
  * Be sure to setup your config values before running this code. You can
  * set them using environment variables or modifying the config file in /config.
