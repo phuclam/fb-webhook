@@ -25,12 +25,8 @@ app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
 
 //Socket.io
-const socketIO = require('socket.io');
-//const PORT = process.env.PORT || 3000;
-//const server = express()
-///    .listen(PORT, () => console.log(`Listening on ${PORT}`));
-
-const io = socketIO(app);
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
 
 io.on('connection', (socket) => {
     console.log('Client connected');
