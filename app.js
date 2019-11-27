@@ -27,6 +27,7 @@ app.use(express.static('public'));
 //Socket.io
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
+server.listen(8080);
 
 io.on('connection', (socket) => {
     console.log('Client connected');
