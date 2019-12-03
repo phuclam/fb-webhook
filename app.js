@@ -31,10 +31,10 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Credentials", true);
     next();
 });
-
 //Socket.io
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
+server.listen(5000);
 
 io.on('connection', (socket) => {
     console.log('Client connected');
