@@ -34,8 +34,15 @@ app.use(function(req, res, next) {
 //Socket.io
 const server = require('http').Server(app);
 const io = require('socket.io')(server, {
-    "transports": ["xhr-polling"],
-    "polling duration" : 10
+    handlePreflightRequest: (req, res) => {
+        const headers = {
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Origin": req.headers.origin, //or the specific origin you want to give access to,
+            "Access-Control-Allow-Credentials": true
+        };
+        res.writeHead(200, headers);
+        res.end();
+    }
 });
 
 io.on('connection', (socket) => {
