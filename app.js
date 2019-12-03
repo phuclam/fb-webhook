@@ -24,7 +24,7 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
 app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Origin", "http://localhost");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     res.header("Access-Control-Allow-Headers", "Content-Type");
     res.header("Access-Control-Allow-Methods", "PUT, GET, POST, DELETE, OPTIONS");
@@ -33,17 +33,7 @@ app.use(function(req, res, next) {
 
 //Socket.io
 const server = require('http').Server(app);
-const io = require('socket.io')(server, {
-    handlePreflightRequest: (req, res) => {
-        const headers = {
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Origin": "http://localhost", //or the specific origin you want to give access to,
-            "Access-Control-Allow-Credentials": true
-        };
-        res.writeHead(200, headers);
-        res.end();
-    }
-});
+const io = require('socket.io')(server);
 
 io.on('connection', (socket) => {
     console.log('Client connected');
