@@ -19,18 +19,18 @@ const
     request = require('request');
 
 var app = express();
-app.set('port', process.env.PORT || 5000);
+//app.set('port', process.env.PORT || 5000);
 app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
-/*app.use(function(req, res, next) {
+app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "http://localhost");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     res.header("Access-Control-Allow-Headers", "Content-Type");
     res.header("Access-Control-Allow-Methods", "PUT, GET, POST, DELETE, OPTIONS");
     res.header("Access-Control-Allow-Credentials", true);
     next();
-});*/
+});
 //Socket.io
 var server = app.listen(5000, function(){
     console.log('listening for requests on port 5000,');
