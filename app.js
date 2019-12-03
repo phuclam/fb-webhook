@@ -35,7 +35,7 @@ app.use(function(req, res, next) {
 var server = app.listen(5000, function(){
     console.log('listening for requests on port 5000,');
 });
-const io = require('socket.io')(server);
+const io = require('socket.io').listen(server);
 
 io.on('connection', (socket) => {
     console.log('Client connected');
