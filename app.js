@@ -19,7 +19,6 @@ const
     request = require('request');
 
 var app = express();
-//app.set('port', process.env.PORT || 5000);
 app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
@@ -42,8 +41,8 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => console.log('Client disconnected'));
 });
 
-io.on('sendMessage', function (senderID, messageText) {
-    sendTextMessage(senderID, messageText);
+io.on('sendMessage', function (recipientID, messageText) {
+    sendTextMessage(recipientID, messageText);
 });
 
 
@@ -345,9 +344,25 @@ function receivedMessage(event) {
     } else if (messageAttachments) {
         sendTextMessage(senderID, "Message with attachment received");
     }
+
+    retrievUserInfo(senderID);
     io.emit('receivedMessage', event);
 }
 
+
+function retrievUserInfo(id) {
+    request({
+        uri: 'https://graph.facebook.com/' + id + '?fields=first_name,last_name,profile_pic',
+        qs: {access_token: PAGE_ACCESS_TOKEN},
+        method: 'GET'
+    }, function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+            console.log(body);
+        } else {
+            console.error("Failed retrieving User Info API", response.statusCode, response.statusMessage, body.error);
+        }
+    });
+}
 
 /*
  * Delivery Confirmation Event
@@ -905,12 +920,5 @@ function callSendAPI(messageData) {
         }
     });
 }
-
-// Start server
-// Webhooks must be available via SSL with a certificate signed by a valid
-// certificate authority.
-app.listen(app.get('port'), function () {
-    console.log('Node app is running on port', app.get('port'));
-});
 
 module.exports = app;
