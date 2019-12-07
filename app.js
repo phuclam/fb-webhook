@@ -105,11 +105,6 @@ app.get('/webhook', function (req, res) {
     }
 });
 
-app.get('/test-send', function (req, res) {
-    sendTextMessage(req.query['id'], 'This is a message from my app!');
-    console.log("Custom send!");
-});
-
 /*
  * All callbacks for Messenger are POST-ed. They will be sent to the same
  * webhook. Be sure to subscribe your app to your page to receive callbacks
@@ -119,7 +114,7 @@ app.get('/test-send', function (req, res) {
  */
 app.post('/webhook', function (req, res) {
     var data = req.body;
-
+    console.log(data);
     // Make sure this is a page subscription
     if (data.object == 'page') {
         data.entry.forEach(function (pageEntry) {
