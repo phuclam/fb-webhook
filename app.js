@@ -48,7 +48,7 @@ io.on('sendMessage', function (recipientID, messageText) {
 });
 
 //Mark as read
-io.on('markSeen', function (recipientID) {
+io.on('seen', function (recipientID) {
     console.log('mark as read message');
     sendMarkSeen(recipientID);
 });
