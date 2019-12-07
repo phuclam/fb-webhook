@@ -42,7 +42,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => console.log('Client disconnected'));
     //Send message
     socket.on('sendMessage', function (recipientID, messageText) {
-        sendTextMessage(recipientID, messageText, true);
+        sendTextMessage(recipientID, messageText);
     });
     //Mark as seen
     socket.on('seen', function (recipientID) {
@@ -319,7 +319,7 @@ function callSendAPI(messageData) {
             console.log(body);
             if (messageId) {
                 console.log("Successfully sent message with id %s to recipient %s", messageId, recipientID);
-                retrieveMessageInfo(messageId, recipientID);
+                retrieveMessageInfo(messageId, recipientID, true);
             } else {
                 console.log("Successfully called Send API for recipient %s", recipientID);
             }
