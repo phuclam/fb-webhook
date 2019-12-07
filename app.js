@@ -116,7 +116,7 @@ app.post('/webhook', function (req, res) {
     var data = req.body;
     console.log(data);
     // Make sure this is a page subscription
-    if (data.object == 'page') {
+    if (data.object === 'page') {
         data.entry.forEach(function (pageEntry) {
             var pageID = pageEntry.id;
             var timeOfEvent = pageEntry.time;
@@ -236,21 +236,19 @@ function receivedMessage(event) {
         senderID, recipientID, timeOfMessage);
     console.log(JSON.stringify(message));
 
-    requiresServerURL(retrieveUserInfo, [senderID]);
-    io.emit('receivedMessage', event);
+    requiresServerURL(retrieveMessageInfo, [message.mid]);
 }
 
-
-function retrieveUserInfo(id) {
+function retrieveMessageInfo(id) {
     request({
-        uri: 'https://graph.facebook.com/' + id + '?fields=first_name,last_name,profile_pic',
+        uri: 'https://graph.facebook.com/' + id + '?fields=from,message,created_time',
         qs: {access_token: PAGE_ACCESS_TOKEN},
         method: 'GET'
     }, function (error, response, body) {
-        if (!error && response.statusCode == 200) {
-            console.log(body);
+        if (!error && response.statusCode === 200) {
+            io.emit('receivedMessage', body);
         } else {
-            console.error("Failed retrieving User Info API", response.statusCode, response.statusMessage, body.error);
+            console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
         }
     });
 }
@@ -346,11 +344,10 @@ function callSendAPI(messageData) {
             var messageId = body.message_id;
 
             if (messageId) {
-                console.log("Successfully sent message with id %s to recipient %s",
-                    messageId, recipientId);
+                console.log("Successfully sent message with id %s to recipient %s", messageId, recipientId);
+                retrieveMessageInfo(messageId);
             } else {
-                console.log("Successfully called Send API for recipient %s",
-                    recipientId);
+                console.log("Successfully called Send API for recipient %s", recipientId);
             }
         } else {
             console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
