@@ -235,7 +235,7 @@ function receivedMessage(event) {
     console.log("Received message from user %d to page %d at %d with message:",
         senderID, recipientID, timeOfMessage);
 
-    retrieveMessageInfo(message.mid, recipientID);
+    retrieveMessageInfo(message.mid, senderID);
 }
 
 function retrieveMessageInfo(id, recipientID) {
