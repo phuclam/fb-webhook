@@ -23,7 +23,7 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
 app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Origin", "http://localhost");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     res.header("Access-Control-Allow-Headers", "Content-Type");
     res.header("Access-Control-Allow-Methods", "PUT, GET, POST, DELETE, OPTIONS");
@@ -40,24 +40,19 @@ const io = require('socket.io').listen(server);
 io.on('connection', (socket) => {
     console.log('A new Client has just been connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
+
+
     socket.on('test', () => console.log('Emit test'));
-});
-
-io.sockets.on('connection', function (socket) {
-    socket.on("getSomeData", function(name,fn) {
-        fn({data: "some random data"});
+    //Send message
+    socket.on('sendMessage', function (recipientID, messageText) {
+        sendTextMessage(recipientID, messageText);
     });
-});
 
-//Send message
-io.on('sendMessage', function (recipientID, messageText) {
-    sendTextMessage(recipientID, messageText);
-});
-
-//Mark as read
-io.on('seen', function (recipientID) {
-    console.log('mark as read message');
-    sendMarkSeen(recipientID);
+    //Mark as read
+    socket.on('seen', function (recipientID) {
+        console.log('mark as read message');
+        sendMarkSeen(recipientID);
+    });
 });
 
 
