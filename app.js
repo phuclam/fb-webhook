@@ -26,7 +26,7 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     res.header("Access-Control-Allow-Headers", "Content-Type");
-    /*res.header("Access-Control-Allow-Methods", "PUT, GET, POST, DELETE, OPTIONS");*/
+    res.header("Access-Control-Allow-Methods", "PUT, GET, POST, DELETE, OPTIONS");
     res.header("Access-Control-Allow-Credentials", true);
     next();
 });
@@ -41,6 +41,12 @@ io.on('connection', (socket) => {
     console.log('A new Client has just been connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
     socket.on('test', () => console.log('Emit test'));
+});
+
+io.sockets.on('connection', function (socket) {
+    socket.on("getSomeData", function(name,fn) {
+        fn({data: "some random data"});
+    });
 });
 
 //Send message
