@@ -40,19 +40,18 @@ const io = require('socket.io').listen(server);
 io.on('connection', (socket) => {
     console.log('A new Client has just been connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
-
-
-    socket.on('test', () => console.log('Emit test'));
     //Send message
     socket.on('sendMessage', function (recipientID, messageText) {
         sendTextMessage(recipientID, messageText);
     });
-
-    //Mark as read
+    //Mark as seen
     socket.on('seen', function (recipientID) {
-        console.log('mark as read message');
         sendMarkSeen(recipientID);
     });
+    //Reset unread
+    socket.on('read', function (recipientID) {
+        sendMarkRead(recipientID);
+    })
 });
 
 
@@ -262,7 +261,7 @@ function retrieveUserInfo(id) {
 }
 
 function sendMarkSeen(recipientId) {
-    console.log("Mark last message as read", recipientId);
+    console.log("Mark last message as seen", recipientId);
 
     var messageData = {
         recipient: {
@@ -272,6 +271,24 @@ function sendMarkSeen(recipientId) {
     };
 
     callSendAPI(messageData);
+}
+
+function sendMarkRead(recipientId) {
+    console.log("Mark last message as seen", recipientId);
+    var messageData = {
+        sender: {
+            id: recipientId
+        },
+        recipient: {
+            id: '165158930691135'
+        },
+        read: {
+            watermark: 15757103850000
+        }
+    };
+
+    callSendAPI(messageData);
+
 }
 /*
  * If users came here through testdrive, they need to configure the server URL
