@@ -42,7 +42,7 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => console.log('Client disconnected'));
     //Send message
     socket.on('sendMessage', function (recipientID, messageText) {
-        sendTextMessage(recipientID, messageText);
+        sendTextMessage(recipientID, messageText, true);
     });
     //Mark as seen
     socket.on('seen', function (recipientID) {
@@ -235,10 +235,10 @@ function receivedMessage(event) {
     console.log("Received message from user %d to page %d at %d with message:",
         senderID, recipientID, timeOfMessage);
 
-    retrieveMessageInfo(message.mid, senderID);
+    retrieveMessageInfo(message.mid, senderID, false);
 }
 
-function retrieveMessageInfo(id, recipientID) {
+function retrieveMessageInfo(id, recipientID, owner) {
     request({
         uri: 'https://graph.facebook.com/' + id + '?fields=from,message,created_time',
         qs: {access_token: PAGE_ACCESS_TOKEN},
@@ -247,7 +247,7 @@ function retrieveMessageInfo(id, recipientID) {
         if (!error && response.statusCode === 200) {
             console.log('Successfully retrieved Message info');
             console.log(JSON.stringify(body));
-            io.emit('receivedMessage', recipientID, body);
+            io.emit('receivedMessage', recipientID, body, owner);
         } else {
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
         }
@@ -256,7 +256,6 @@ function retrieveMessageInfo(id, recipientID) {
 
 function sendMarkSeen(recipientID) {
     console.log("Mark last message as seen", recipientID);
-
     var messageData = {
         recipient: {
             id: recipientID
