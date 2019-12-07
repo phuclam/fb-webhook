@@ -40,6 +40,7 @@ const io = require('socket.io').listen(server);
 io.on('connection', (socket) => {
     console.log('A new Client has just been connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
+    socket.on('test', () => console.log('Emit test'));
 });
 
 //Send message
