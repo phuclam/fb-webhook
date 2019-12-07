@@ -234,31 +234,32 @@ function receivedMessage(event) {
 
     console.log("Received message from user %d to page %d at %d with message:",
         senderID, recipientID, timeOfMessage);
-    console.log(JSON.stringify(message));
 
-    requiresServerURL(retrieveMessageInfo, [message.mid]);
+    retrieveMessageInfo(message.mid, recipientID);
 }
 
-function retrieveMessageInfo(id) {
+function retrieveMessageInfo(id, recipientID) {
     request({
         uri: 'https://graph.facebook.com/' + id + '?fields=from,message,created_time',
         qs: {access_token: PAGE_ACCESS_TOKEN},
         method: 'GET'
     }, function (error, response, body) {
         if (!error && response.statusCode === 200) {
-            io.emit('receivedMessage', body);
+            console.log('Successfully retrieved Message info');
+            console.log(JSON.stringify(body));
+            io.emit('receivedMessage', recipientID, body);
         } else {
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
         }
     });
 }
 
-function sendMarkSeen(recipientId) {
-    console.log("Mark last message as seen", recipientId);
+function sendMarkSeen(recipientID) {
+    console.log("Mark last message as seen", recipientID);
 
     var messageData = {
         recipient: {
-            id: recipientId
+            id: recipientID
         },
         sender_action: "mark_seen"
     };
@@ -266,11 +267,11 @@ function sendMarkSeen(recipientId) {
     callSendAPI(messageData);
 }
 
-function sendMarkRead(recipientId) {
-    console.log("Mark last message as seen", recipientId);
+function sendMarkRead(recipientID) {
+    console.log("Mark last message as seen", recipientID);
     var messageData = {
         sender: {
-            id: recipientId
+            id: recipientID
         },
         recipient: {
             id: '165158930691135'
@@ -284,39 +285,13 @@ function sendMarkRead(recipientId) {
 
 }
 /*
- * If users came here through testdrive, they need to configure the server URL
- * in default.json before they can access local resources likes images/videos.
- */
-function requiresServerURL(next, [recipientId, ...args]) {
-    if (SERVER_URL === "to_be_set_manually") {
-        var messageData = {
-            recipient: {
-                id: recipientId
-            },
-            message: {
-                text: `
-We have static resources like images and videos available to test, but you need to update the code you downloaded earlier to tell us your current server url.
-1. Stop your node server by typing ctrl-c
-2. Paste the result you got from running "lt —port 5000" into your config/default.json file as the "serverURL".
-3. Re-run "node app.js"
-Once you've finished these steps, try typing “video” or “image”.
-        `
-            }
-        }
-
-        callSendAPI(messageData);
-    } else {
-        next.apply(this, [recipientId, ...args]);
-    }
-}
-/*
  * Send a text message using the Send API.
  *
  */
-function sendTextMessage(recipientId, messageText) {
+function sendTextMessage(recipientID, messageText) {
     var messageData = {
         recipient: {
-            id: recipientId
+            id: recipientID
         },
         message: {
             text: messageText,
@@ -340,14 +315,14 @@ function callSendAPI(messageData) {
 
     }, function (error, response, body) {
         if (!error && response.statusCode == 200) {
-            var recipientId = body.recipient_id;
+            var recipientID = body.recipient_id;
             var messageId = body.message_id;
             console.log(body);
             if (messageId) {
-                console.log("Successfully sent message with id %s to recipient %s", messageId, recipientId);
-                retrieveMessageInfo(messageId);
+                console.log("Successfully sent message with id %s to recipient %s", messageId, recipientID);
+                retrieveMessageInfo(messageId, recipientID);
             } else {
-                console.log("Successfully called Send API for recipient %s", recipientId);
+                console.log("Successfully called Send API for recipient %s", recipientID);
             }
         } else {
             console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
