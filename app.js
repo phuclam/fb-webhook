@@ -126,6 +126,10 @@ app.post('/webhook', function (req, res) {
                     receivedAuthentication(messagingEvent);
                 } else if (messagingEvent.message) {
                     receivedMessage(messagingEvent);
+                } else if (messagingEvent.read) {
+                    console.log('Received Read event');
+                } else if (messagingEvent.delivery) {
+                    console.log('Received Read event');
                 } else {
                     console.log("Webhook received unknown messagingEvent: ", messagingEvent);
                 }
@@ -226,6 +230,7 @@ function receivedAuthentication(event) {
  *
  */
 function receivedMessage(event) {
+    console.log(event);
     var senderID = event.sender.id;
     var recipientID = event.recipient.id;
     var timeOfMessage = event.timestamp;
@@ -245,10 +250,8 @@ function retrieveMessageInfo(id, recipientID, owner) {
     }, function (error, response, body) {
         if (!error && response.statusCode === 200) {
             console.log('Successfully retrieved Message info');
-            console.log(JSON.stringify(body));
             io.emit('receivedMessage', recipientID, body, owner);
         } else {
-            console.log(error);
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
         }
     });
