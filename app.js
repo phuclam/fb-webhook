@@ -248,6 +248,7 @@ function retrieveMessageInfo(id, recipientID, owner) {
             console.log(JSON.stringify(body));
             io.emit('receivedMessage', recipientID, body, owner);
         } else {
+            console.log(error);
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
         }
     });
