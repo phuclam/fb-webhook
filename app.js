@@ -244,12 +244,15 @@ function receivedMessage(event) {
 
 function retrieveMessageInfo(id, recipientID, owner) {
     request({
-        uri: 'https://graph.facebook.com/' + id + '?fields=from,message,created_time',
+        uri: 'https://graph.facebook.com/' + id + '?fields=from,message,attachments,sticker,created_time',
         qs: {access_token: PAGE_ACCESS_TOKEN},
         method: 'GET'
     }, function (error, response, body) {
         if (!error && response.statusCode === 200) {
+            console.log('------');
             console.log('Successfully retrieved Message info');
+            console.log(body);
+            console.log('-------');
             io.emit('receivedMessage', recipientID, body, owner);
         } else {
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
