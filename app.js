@@ -79,6 +79,10 @@ io.on('connection', (socket) => {
     socket.on('sendMessage', function (recipientID, messageText) {
         sendTextMessage(recipientID, messageText);
     });
+    //Send attachment from url
+    socket.on('sendAttachment', function (recipientID, url) {
+        sendAttachment(recipientID, url);
+    });
     //Mark as seen
     socket.on('seen', function (recipientID) {
         sendMarkSeen(recipientID);
@@ -288,6 +292,24 @@ function sendMarkRead(recipientID) {
 
     callSendAPI(messageData);
 
+}
+
+function sendAttachment(recipientID, url) {
+    var messageData = {
+        recipient: {
+            id: recipientID
+        },
+        message: {
+            attachment: {
+                type: "file",
+                payload: {
+                    url: url
+                }
+            }
+        }
+    };
+
+    callSendAPI(messageData);
 }
 /*
  * Send a text message using the Send API.
