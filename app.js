@@ -80,8 +80,8 @@ io.on('connection', (socket) => {
         sendTextMessage(recipientID, messageText);
     });
     //Send attachment from url
-    socket.on('sendAttachment', function (recipientID, url) {
-        sendAttachment(recipientID, url);
+    socket.on('sendAttachment', function (recipientID, url, type) {
+        sendAttachment(recipientID, url, type);
     });
     //Mark as seen
     socket.on('seen', function (recipientID) {
@@ -294,14 +294,17 @@ function sendMarkRead(recipientID) {
 
 }
 
-function sendAttachment(recipientID, url) {
+function sendAttachment(recipientID, url, type) {
+    if (typeof type === 'undefined') {
+        type = 'file';
+    }
     var messageData = {
         recipient: {
             id: recipientID
         },
         message: {
             attachment: {
-                type: "file",
+                type: type,
                 payload: {
                     url: url
                 }
