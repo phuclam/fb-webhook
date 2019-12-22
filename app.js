@@ -93,7 +93,7 @@ io.on('connection', (socket) => {
     });
     //Update Status / Assigned to
     socket.on('updateAssignedStatus', function (recipientID, data) {
-        socket.broadcast.emit('updateAssignedStatus', recipientID, data);
+        io.emit('updateAssignedStatus', recipientID, data);
     })
 });
 
