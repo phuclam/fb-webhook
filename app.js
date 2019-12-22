@@ -90,6 +90,10 @@ io.on('connection', (socket) => {
     //Reset unread
     socket.on('read', function (recipientID) {
         sendMarkRead(recipientID);
+    });
+    //Update Status / Assigned to
+    socket.on('updateAssignedStatus', function (recipientID, data) {
+        socket.emit('updateAssignedStatus', recipientID, data);
     })
 });
 
@@ -255,7 +259,6 @@ function retrieveMessageInfo(id, recipientID, owner) {
         if (!error && response.statusCode === 200) {
             console.log('------');
             console.log('Successfully retrieved Message info');
-            console.log(body);
             console.log('-------');
             io.emit('receivedMessage', recipientID, body, owner);
         } else {
