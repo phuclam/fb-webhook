@@ -1,6 +1,6 @@
 {
     "appSecret": "c66a4f632c28c983dc073dd91c6be5db",
-    "pageAccessToken": "EAALHFS6GuBUBAB25ak9aD3noVrwVRy1IbNz5jMxMaNPAN3nNCVJOWenRmgWa3gQXn7HBGE8m2L90OMwLtYsXZBZBHOi4zNdco6YgOzXFBZAcHtMIZAGRi8g0oDk1UGCzZA65xrnYuDxv4t4hmvqZBulQrHMY8bK3Xx5zmSZA4tManfvlT9xLLIs",
+    "pageAccessToken": "EAALHFS6GuBUBAAOZAlE75JxjLxplx0k4Q1SXN6xj1gzIKpKyCTHz14kLSpYZBKQdSIPb6KmguUULp0Q6uaQ9uvSZAA24OPorqdtHqb1i4HPzF4FLTIypay4xdoyzn10FdnpaXWpioIuCLzqTsvgZBLYXZBtopWzzY3HqtYPndeaboZAdtj6HahGwlPv03xYBSFIZCeKbn04BwZDZD",
     "validationToken": "TOKEN",
     "serverURL": "https://kycdev.bittenet.com",
     "AllowOrigin": "http://localhost"
