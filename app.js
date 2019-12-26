@@ -170,6 +170,26 @@ app.get('/authorize', function (req, res) {
     });
 });
 
+/**
+ * Line Webhook
+ */
+
+app.get('/line-webhook', function (req, res) {
+    if (req.query['hub.mode'] === 'subscribe' &&
+        req.query['hub.verify_token'] === VALIDATION_TOKEN) {
+        console.log("Validating webhook");
+        res.status(200).send(req.query['hub.challenge']);
+    } else {
+        console.error("Failed validation. Make sure the validation tokens match.");
+        res.sendStatus(403);
+    }
+});
+
+app.post('/line-webhook', function (req, res) {
+    var data = req.body;
+    console.log('post - line');
+});
+
 /*
  * Verify that the callback came from Facebook. Using the App Secret from
  * the App Dashboard, we can verify the signature that is sent with each
