@@ -167,27 +167,22 @@ function verifyRequestSignature(req, res, buf) {
         var signatureHash = elements[1];
 
         var expectedHash = crypto.createHmac('sha1', APP_SECRET).update(buf).digest('hex');
-
         if (signatureHash !== expectedHash) {
-            throw new Error("Couldn't validate the request signature.");
+            res.sendStatus(403);
         }
     }
     //verify Line
     else if(req.headers["x-line-signature"]) {
         let signature = req.headers["x-line-signature"];
         let expectedHash = crypto.createHmac('SHA256', LINE_CHANNEL_SECRET).update(buf).digest('base64');
-
-        console.log('--verify--');
-        console.log(signature);
-        console.log(expectedHash)
-        console.log('--end verify--');
-
-
+        if (signature !== expectedHash) {
+            res.sendStatus(403);
+        }
     } else {
+        res.sendStatus(403);
         console.log('------------');
         console.log(req.headers);
         console.log('------------');
-        throw new Error("Couldn't validate the request signature.");
     }
 }
 
