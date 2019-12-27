@@ -59,10 +59,6 @@ io.on('connection', (socket) => {
     socket.on('seen', function (recipientID) {
         sendMarkSeen(recipientID);
     });
-    //Reset unread
-    socket.on('read', function (recipientID) {
-        sendMarkRead(recipientID);
-    });
     //Update Status / Assigned to
     socket.on('updateAssignedStatus', function (recipientID, data) {
         io.emit('updateAssignedStatus', recipientID, data);
@@ -254,9 +250,6 @@ function retrieveMessageInfo(id, recipientID, owner) {
         method: 'GET'
     }, function (error, response, body) {
         if (!error && response.statusCode === 200) {
-            console.log('------');
-            console.log('Successfully retrieved Message info');
-            console.log('-------');
             io.emit('receivedMessage', recipientID, body, owner);
         } else {
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
@@ -267,6 +260,8 @@ function retrieveMessageInfo(id, recipientID, owner) {
 function sendMarkSeen(recipientID) {
     console.log("Mark last message as seen", recipientID);
     var messageData = {
+        messaging_type: "MESSAGE_TAG",
+        tag: "ISSUE_RESOLUTION",
         recipient: {
             id: recipientID
         },
@@ -276,29 +271,13 @@ function sendMarkSeen(recipientID) {
     callSendAPI(messageData);
 }
 
-function sendMarkRead(recipientID) {
-    console.log("Mark last message as seen", recipientID);
-    var messageData = {
-        sender: {
-            id: recipientID
-        },
-        recipient: {
-            id: '165158930691135'
-        },
-        read: {
-            watermark: 15757103850000
-        }
-    };
-
-    callSendAPI(messageData);
-
-}
-
 function sendAttachment(recipientID, url, type) {
     if (typeof type === 'undefined') {
         type = 'file';
     }
     var messageData = {
+        messaging_type: "MESSAGE_TAG",
+        tag: "ISSUE_RESOLUTION",
         recipient: {
             id: recipientID
         },
