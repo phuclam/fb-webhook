@@ -148,6 +148,7 @@ app.post('/line-webhook', function (req, res) {
     console.log(data);
     console.log('post - line');
     console.log('-----');
+    res.sendStatus(200);
 });
 
 /*
@@ -179,7 +180,7 @@ function verifyRequestSignature(req, res, buf) {
             res.sendStatus(403);
         }
     } else {
-        res.sendStatus(403);
+        res.status(403).send('error text');
         console.log('------------');
         console.log(req.headers);
         console.log('------------');
