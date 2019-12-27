@@ -1,13 +1,3 @@
-/*
- * Copyright 2016-present, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
-
-/* jshint node: true, devel: true */
 'use strict';
 
 const bodyParser = require('body-parser'),
@@ -17,43 +7,30 @@ const bodyParser = require('body-parser'),
     https = require('https'),
     request = require('request');
 
-/*
- * Be sure to setup your config values before running this code. You can
- * set them using environment variables or modifying the config file in /config.
- *
- */
 // App Secret can be retrieved from the App Dashboard
-const APP_SECRET = (process.env.MESSENGER_APP_SECRET) ?
-    process.env.MESSENGER_APP_SECRET :
-    config.get('appSecret');
+const APP_SECRET = config.get('appSecret');
 
 // Arbitrary value used to validate a webhook
-const VALIDATION_TOKEN = (process.env.MESSENGER_VALIDATION_TOKEN) ?
-    (process.env.MESSENGER_VALIDATION_TOKEN) :
-    config.get('validationToken');
+const VALIDATION_TOKEN = config.get('validationToken');
 
 // Generate a page access token for your page from the App Dashboard
-const PAGE_ACCESS_TOKEN = (process.env.MESSENGER_PAGE_ACCESS_TOKEN) ?
-    (process.env.MESSENGER_PAGE_ACCESS_TOKEN) :
-    config.get('pageAccessToken');
+const PAGE_ACCESS_TOKEN = config.get('pageAccessToken');
 
-// URL where the app is running (include protocol). Used to point to scripts and
-// assets located at this address.
-const SERVER_URL = (process.env.SERVER_URL) ?
-    (process.env.SERVER_URL) :
-    config.get('serverURL');
+// URL where the app is running (include protocol). Used to point to scripts and assets located at this address.
+const SERVER_URL = config.get('serverURL');
 
-const ALLOW_ORIGIN = (process.env.ALLOW_ORIGIN) ?
-    (process.env.ALLOW_ORIGIN) :
-    config.get('AllowOrigin');
+const ALLOW_ORIGIN = config.get('AllowOrigin');
 
-if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL && ALLOW_ORIGIN)) {
+const LINE_ACCESS_TOKEN = config.get('lineAccessToken');
+const LINE_CHANNEL_SECRET = config.get('lineChanelSecret');
+
+if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL && ALLOW_ORIGIN && LINE_ACCESS_TOKEN && LINE_CHANNEL_SECRET)) {
     console.error("Missing config values");
     process.exit(1);
 }
 
-
 var app = express();
+var server = app.listen(5000);
 app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
@@ -66,12 +43,7 @@ app.use(function(req, res, next) {
     next();
 });
 //Socket.io
-var server = app.listen(5000, function(){
-    console.log('listening for requests on port 5000,');
-});
 const io = require('socket.io').listen(server);
-
-//Connect Socket
 io.on('connection', (socket) => {
     console.log('A new Client has just been connected');
     socket.on('disconnect', () => console.log('Client disconnected'));
@@ -174,20 +146,12 @@ app.get('/authorize', function (req, res) {
  * Line Webhook
  */
 
-app.get('/line-webhook', function (req, res) {
-    if (req.query['hub.mode'] === 'subscribe' &&
-        req.query['hub.verify_token'] === VALIDATION_TOKEN) {
-        console.log("Validating webhook");
-        res.status(200).send(req.query['hub.challenge']);
-    } else {
-        console.error("Failed validation. Make sure the validation tokens match.");
-        res.sendStatus(403);
-    }
-});
-
 app.post('/line-webhook', function (req, res) {
     var data = req.body;
+    console.log('-----');
+    console.log(data);
     console.log('post - line');
+    console.log('-----');
 });
 
 /*
@@ -199,13 +163,9 @@ app.post('/line-webhook', function (req, res) {
  *
  */
 function verifyRequestSignature(req, res, buf) {
-    var signature = req.headers["x-hub-signature"];
-
-    if (!signature) {
-        // For testing, let's log an error. In production, you should throw an
-        // error.
-        console.error("Couldn't validate the signature.");
-    } else {
+    //verify Facebook
+    if (req.headers["x-hub-signature"]) {
+        let signature = req.headers["x-hub-signature"];
         var elements = signature.split('=');
         var method = elements[0];
         var signatureHash = elements[1];
@@ -217,6 +177,23 @@ function verifyRequestSignature(req, res, buf) {
         if (signatureHash !== expectedHash) {
             throw new Error("Couldn't validate the request signature.");
         }
+    }
+    //verify Line
+    else if(req.headers["x-line-signature"]) {
+        let signature = req.headers["x-line-signature"];
+        let expectedHash = crypto.createHmac('sha1', LINE_CHANNEL_SECRET);
+
+        console.log('--verify--');
+        console.log(signature);
+        console.log(expectedHash)
+        console.log('--end verify--');
+
+
+    } else {
+        console.log('------------');
+        console.log(req.headers);
+        console.log('------------');
+        throw new Error("Couldn't validate the request signature.");
     }
 }
 

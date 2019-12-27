@@ -1,7 +1,0 @@
-{
-    "appSecret": "c66a4f632c28c983dc073dd91c6be5db",
-    "pageAccessToken": "EAALHFS6GuBUBAPq7HQ1qYNpUDlCmXZBmX8fFlYCj208jd6NGbL9OHgBQE8hZCzfGgQFFZCEuLU5q7HYO90BWfmcZB9zceJNgMw6gZB462ZBZAwwc7cJWL57NZB7gOwy85daSWTagnIDZA5En5jVx1XgII6iZAqwmJ65uMLL7zsamwGccsSJS2eNUIZB",
-    "validationToken": "TOKEN",
-    "serverURL": "https://kycdev.bittenet.com",
-    "AllowOrigin": "http://localhost"
-}
