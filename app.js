@@ -105,7 +105,7 @@ app.post('/webhook', function (req, res) {
                 } else if (messagingEvent.read) {
                     console.log('Received Read event');
                 } else if (messagingEvent.delivery) {
-                    console.log('Received Read event');
+                    console.log('Received Delivery event');
                 } else {
                     console.log("Webhook received unknown messagingEvent: ", messagingEvent);
                 }
