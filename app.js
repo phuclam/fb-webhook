@@ -321,6 +321,7 @@ function sendAttachment(recipientID, url, type) {
 function sendTextMessage(recipientID, messageText) {
     var messageData = {
         messaging_type: "MESSAGE_TAG",
+        tag: "HUMAN_AGENT",
         recipient: {
             id: recipientID
         },
