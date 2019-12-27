@@ -166,9 +166,7 @@ function verifyRequestSignature(req, res, buf) {
         var method = elements[0];
         var signatureHash = elements[1];
 
-        var expectedHash = crypto.createHmac('sha1', APP_SECRET)
-            .update(buf)
-            .digest('hex');
+        var expectedHash = crypto.createHmac('sha1', APP_SECRET).update(buf).digest('hex');
 
         if (signatureHash !== expectedHash) {
             throw new Error("Couldn't validate the request signature.");
@@ -177,7 +175,7 @@ function verifyRequestSignature(req, res, buf) {
     //verify Line
     else if(req.headers["x-line-signature"]) {
         let signature = req.headers["x-line-signature"];
-        let expectedHash = crypto.createHmac('sha1', LINE_CHANNEL_SECRET);
+        let expectedHash = crypto.createHmac('SHA256', LINE_CHANNEL_SECRET).update(buf).digest('base64');
 
         console.log('--verify--');
         console.log(signature);
@@ -236,8 +234,9 @@ function receivedMessage(event) {
     var timeOfMessage = event.timestamp;
     var message = event.message;
 
-    console.log("Received message from user %d to page %d at %d with message: %d",
-        senderID, recipientID, timeOfMessage, message.text);
+    console.log("Received message from user %d to page %d at %d with message:",
+        senderID, recipientID, timeOfMessage);
+    console.log(message);
 
     retrieveMessageInfo(message.mid, senderID, false);
 }
