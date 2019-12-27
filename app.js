@@ -71,6 +71,9 @@ io.on('connection', (socket) => {
  *
  */
 app.get('/webhook', function (req, res) {
+    if (!res.signature_matched) {
+        return res.sendStatus(403);
+    }
     if (req.query['hub.mode'] === 'subscribe' &&
         req.query['hub.verify_token'] === VALIDATION_TOKEN) {
         console.log("Validating webhook");
@@ -89,6 +92,10 @@ app.get('/webhook', function (req, res) {
  *
  */
 app.post('/webhook', function (req, res) {
+    if (!res.signature_matched) {
+        return res.sendStatus(403);
+    }
+
     var data = req.body;
     // Make sure this is a page subscription
     if (data.object === 'page') {
@@ -143,6 +150,9 @@ app.get('/authorize', function (req, res) {
  */
 
 app.post('/line-webhook', function (req, res) {
+    if (!res.signature_matched) {
+        return res.sendStatus(403);
+    }
     var data = req.body;
     console.log('-----');
     console.log(data);
@@ -168,22 +178,17 @@ function verifyRequestSignature(req, res, buf) {
         var signatureHash = elements[1];
 
         var expectedHash = crypto.createHmac('sha1', APP_SECRET).update(buf).digest('hex');
-        if (signatureHash !== expectedHash) {
-            res.sendStatus(403);
+        if (signatureHash === expectedHash) {
+            res.signature_matched = true;
         }
     }
     //verify Line
     else if(req.headers["x-line-signature"]) {
         let signature = req.headers["x-line-signature"];
         let expectedHash = crypto.createHmac('SHA256', LINE_CHANNEL_SECRET).update(buf).digest('base64');
-        if (signature !== expectedHash) {
-            res.sendStatus(403);
+        if (signature === expectedHash) {
+            res.signature_matched = true;
         }
-    } else {
-        res.status(403).send('error text');
-        console.log('------------');
-        console.log(req.headers);
-        console.log('------------');
     }
 }
 
