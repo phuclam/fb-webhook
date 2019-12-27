@@ -320,12 +320,12 @@ function sendAttachment(recipientID, url, type) {
  */
 function sendTextMessage(recipientID, messageText) {
     var messageData = {
+        messaging_type: "MESSAGE_TAG",
         recipient: {
             id: recipientID
         },
         message: {
-            text: messageText,
-            metadata: "DEVELOPER_DEFINED_METADATA"
+            text: messageText
         }
     };
 
