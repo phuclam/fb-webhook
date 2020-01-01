@@ -46,6 +46,7 @@ app.use(function(req, res, next) {
 //Socket.io
 const io = require('socket.io').listen(server);
 var messageSchema = mongoose.Schema({
+    sender_id: String,
     recipient_id: String,
     type: String,
     message_id: String,
@@ -115,6 +116,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         });
         res.sendStatus(200);
     });
+
+    app.get('/api/conversations')
 });
 
 /*
@@ -273,9 +276,18 @@ function receivedMessage(event) {
 
     console.log("Received message from user %d to page %d at %d with message:",
         senderID, recipientID, timeOfMessage);
-    console.log(message);
-
-    retrieveMessageInfo(message.mid, senderID, false);
+    Recipient.findOneAndUpdate(
+        {recipient_id: recipientID},
+        {
+            type: 'Facebook',
+            last_message: new Date(),
+        },
+        {upsert: true, new: true, setDefaultsOnInsert: true},
+        function (error) {
+            if (!error) {
+                retrieveMessageInfo(message.mid, senderID, false);
+            }
+        });
 }
 
 function retrieveMessageInfo(id, recipientID, owner) {
@@ -388,13 +400,16 @@ function receivedLineMessage(event) {
                 switch (event.message.type) {
                     case 'text':
                         let msg = new Message({
+                            sender_id: event.source.userId,
                             recipient_id: event.source.userId,
                             type: 'text',
                             message_id: event.message.id,
                             message_text: event.message.text
                         });
                         msg.save(function (err, data) {
-                            console.log('save', data);
+                            if (!err) {
+                                io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
+                            }
                         });
                         break;
                     case 'image':
@@ -414,6 +429,7 @@ function receivedLineMessage(event) {
                                 fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
 
                                 let msg = new Message({
+                                    sender_id: event.source.userId,
                                     recipient_id: event.source.userId,
                                     type: 'image',
                                     message_id: event.message.id,
@@ -422,11 +438,15 @@ function receivedLineMessage(event) {
                                 });
 
                                 msg.save(function (err, data) {
-                                    console.log('save', data);
+                                    if (!err) {
+                                        io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
+                                    }
                                 });
                             }
                         });
                         break;
+                    default:
+                        console.log('----Received a Line message: This file type ' + event.message.type + ' does not support yet.')
                 }
             } else {
                 console.log('------error recipient------');
