@@ -45,30 +45,30 @@ app.use(function(req, res, next) {
 });
 //Socket.io
 const io = require('socket.io').listen(server);
+var messageSchema = mongoose.Schema({
+    recipient_id: String,
+    type: String,
+    message_id: String,
+    message_text: String,
+    attachment_type: String,
+    attachment_url: String,
+    attachment_name: String,
+    attachment_preview_url: String,
+    created: {type: Date, default: Date.now},
+}).plugin(mongoosePaginate);
+
+var recipientSchema = mongoose.Schema({
+    last_message: {type: Date, default: Date.now}
+}).plugin(mongoosePaginate);
+
+var Message = mongoose.model('messages', messageSchema);
+var Recipient = mongoose.model('recipients', recipientSchema);
 
 mongoose.Promise = require('bluebird');
 mongoose.connect(process.env.MONGO_CONNECTION_STRING, {useNewUrlParser: true, useUnifiedTopology: true}, function (err) {
     if (err) {
         throw err;
     }
-
-    let messageSchema = mongoose.Schema({
-        recipient_id: String,
-        type: String,
-        message_text: String,
-        attachment_type: String,
-        attachment_url: String,
-        attachment_name: String,
-        attachment_preview_url: String,
-        created: {type: Date, default: Date.now},
-    }).plugin(mongoosePaginate);
-
-    let recipientSchema = mongoose.Schema({
-
-    }).plugin(mongoosePaginate);
-
-    let Message = mongoose.model('messages', messageSchema);
-    let Recipient = mongoose.model('recipients', recipientSchema);
 
     io.on('connection', (socket) => {
         console.log('A new Client has just been connected');
@@ -101,7 +101,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {useNewUrlParser: true, us
         }
         var data = req.body;
         data.events.forEach(function (entry) {
-            console.log(entry);
+            if (entry.type === 'message') {
+                receivedLineMessage(entry);
+            }
         });
         res.sendStatus(200);
     });
@@ -364,4 +366,23 @@ function callSendAPI(messageData) {
     });
 }
 
+/* ****************LINE EVENT******************* */
+function receivedLineMessage(event) {
+    switch (event.message.type) {
+        case 'text':
+            let msg = new Message({
+                recipient_id: event.source.userId,
+                type: 'text',
+                message_id: event.message.id,
+                message_text: event.message.text
+            });
+            msg.save(function (err, data) {
+                console.log('save', data);
+            });
+            break;
+        case 'image':
+            break;
+    }
+}
+/* ***************END LINE EVENT**************** */
 module.exports = app;
