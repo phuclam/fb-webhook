@@ -1,7 +1,7 @@
 {
-  "name": "messenger-get-started",
+  "name": "webhook-for-3rd-party-messenger",
   "version": "1.0.0",
-  "description": "Get started example for Messenger Platform",
+  "description": "Webhook For 3rd party messenger",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -10,15 +10,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/fbsamples/messenger-platform-samples.git"
+    "url": ""
   },
-  "author": "Facebook",
+  "author": "Phuc Lam",
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.15.0",
     "config": "^1.20.4",
+    "dotenv": "^8.2.0",
     "ejs": "^2.4.2",
     "express": "^4.13.4",
+    "mongoose": "^5.8.3",
+    "mongoose-paginate": "^5.0.3",
     "request": "^2.72.0",
     "socket.io": "^2.3.0"
   }

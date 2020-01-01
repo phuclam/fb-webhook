@@ -1,28 +1,29 @@
 'use strict';
 
+require('dotenv').config();
 const bodyParser = require('body-parser'),
     config = require('config'),
     crypto = require('crypto'),
     express = require('express'),
     https = require('https'),
-    request = require('request');
+    request = require('request'),
+    mongoose = require('mongoose'),
+    mongoosePaginate = require('mongoose-paginate');
 
-// App Secret can be retrieved from the App Dashboard
-const APP_SECRET = config.get('appSecret');
 
-// Arbitrary value used to validate a webhook
-const VALIDATION_TOKEN = config.get('validationToken');
+// Origin
+const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN;
+const SERVER_URL = process.env.SERVER_URL;
 
-// Generate a page access token for your page from the App Dashboard
-const PAGE_ACCESS_TOKEN = config.get('pageAccessToken');
+// Facebook
+const APP_SECRET = process.env.FB_APP_SECRET;
+const VALIDATION_TOKEN = process.env.FB_VALIDATE_TOKEN;
+const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN;
 
-// URL where the app is running (include protocol). Used to point to scripts and assets located at this address.
-const SERVER_URL = config.get('serverURL');
+// Line
+const LINE_ACCESS_TOKEN = process.env.LINE_ACCESS_TOKEN;
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
-const ALLOW_ORIGIN = config.get('AllowOrigin');
-
-const LINE_ACCESS_TOKEN = config.get('lineAccessToken');
-const LINE_CHANNEL_SECRET = config.get('lineChanelSecret');
 
 if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL && ALLOW_ORIGIN && LINE_ACCESS_TOKEN && LINE_CHANNEL_SECRET)) {
     console.error("Missing config values");
@@ -44,25 +45,66 @@ app.use(function(req, res, next) {
 });
 //Socket.io
 const io = require('socket.io').listen(server);
-io.on('connection', (socket) => {
-    console.log('A new Client has just been connected');
-    socket.on('disconnect', () => console.log('Client disconnected'));
-    //Send message
-    socket.on('sendMessage', function (recipientID, messageText) {
-        sendTextMessage(recipientID, messageText);
+
+mongoose.Promise = require('bluebird');
+mongoose.connect(process.env.MONGO_CONNECTION_STRING, {useNewUrlParser: true, useUnifiedTopology: true}, function (err) {
+    if (err) {
+        throw err;
+    }
+
+    let messageSchema = mongoose.Schema({
+        recipient_id: String,
+        type: String,
+        message_text: String,
+        attachment_type: String,
+        attachment_url: String,
+        attachment_name: String,
+        attachment_preview_url: String,
+        created: {type: Date, default: Date.now},
+    }).plugin(mongoosePaginate);
+
+    let recipientSchema = mongoose.Schema({
+
+    }).plugin(mongoosePaginate);
+
+    let Message = mongoose.model('messages', messageSchema);
+    let Recipient = mongoose.model('recipients', recipientSchema);
+
+    io.on('connection', (socket) => {
+        console.log('A new Client has just been connected');
+        socket.on('disconnect', () => console.log('Client disconnected'));
+        //Send message
+        socket.on('sendMessage', function (recipientID, messageText) {
+            sendTextMessage(recipientID, messageText);
+        });
+        //Send attachment from url
+        socket.on('sendAttachment', function (recipientID, url, type) {
+            sendAttachment(recipientID, url, type);
+        });
+        //Mark as seen
+        socket.on('seen', function (recipientID) {
+            sendMarkSeen(recipientID);
+        });
+        //Update Status / Assigned to
+        socket.on('updateAssignedStatus', function (recipientID, data) {
+            io.emit('updateAssignedStatus', recipientID, data);
+        })
     });
-    //Send attachment from url
-    socket.on('sendAttachment', function (recipientID, url, type) {
-        sendAttachment(recipientID, url, type);
+
+    /**
+     * Line Webhook
+     */
+
+    app.post('/line-webhook', function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+        var data = req.body;
+        data.events.forEach(function (entry) {
+            console.log(entry);
+        });
+        res.sendStatus(200);
     });
-    //Mark as seen
-    socket.on('seen', function (recipientID) {
-        sendMarkSeen(recipientID);
-    });
-    //Update Status / Assigned to
-    socket.on('updateAssignedStatus', function (recipientID, data) {
-        io.emit('updateAssignedStatus', recipientID, data);
-    })
 });
 
 /*
@@ -143,22 +185,6 @@ app.get('/authorize', function (req, res) {
         redirectURI: redirectURI,
         redirectURISuccess: redirectURISuccess
     });
-});
-
-/**
- * Line Webhook
- */
-
-app.post('/line-webhook', function (req, res) {
-    if (!res.signature_matched) {
-        return res.sendStatus(403);
-    }
-    var data = req.body;
-    console.log('-----');
-    console.log(data);
-    console.log('post - line');
-    console.log('-----');
-    res.sendStatus(200);
 });
 
 /*
