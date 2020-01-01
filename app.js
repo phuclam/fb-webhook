@@ -7,6 +7,7 @@ const bodyParser = require('body-parser'),
     express = require('express'),
     https = require('https'),
     request = require('request'),
+    fs = require('fs'),
     mongoose = require('mongoose'),
     mongoosePaginate = require('mongoose-paginate');
 
@@ -398,7 +399,34 @@ function receivedLineMessage(event) {
                         });
                         break;
                     case 'image':
-                        console.log(event.message);
+                        request({
+                            url: 'https://api-data.line.me/v2/bot/message/'+event.message.id+'/content',
+                            method: 'GET',
+                            headers: {
+                                'Authorization' : 'Bearer ' + LINE_ACCESS_TOKEN
+                            },
+                            encoding: null
+                        }, function (error, response, body) {
+                            if (!error && response.statusCode === 200) {
+                                let dir = './uploads';
+                                if (!fs.existsSync(dir)){
+                                    fs.mkdirSync(dir);
+                                }
+                                fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
+
+                                let msg = new Message({
+                                    recipient_id: event.source.userId,
+                                    type: 'image',
+                                    message_id: event.message.id,
+                                    attachment_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                    attachment_preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                });
+
+                                msg.save(function (err, data) {
+                                    console.log('save', data);
+                                });
+                            }
+                        });
                         break;
                 }
             } else {
