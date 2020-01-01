@@ -2,7 +2,6 @@
 
 require('dotenv').config();
 const bodyParser = require('body-parser'),
-    config = require('config'),
     crypto = require('crypto'),
     express = require('express'),
     https = require('https'),
@@ -418,8 +417,8 @@ function receivedLineMessage(event) {
                                     recipient_id: event.source.userId,
                                     type: 'image',
                                     message_id: event.message.id,
-                                    attachment_url: SERVER_URL + '/public/uploads/' + event.message.id + '.png',
-                                    attachment_preview_url: SERVER_URL + '/public/uploads/' + event.message.id + '.png',
+                                    attachment_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                    attachment_preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
                                 });
 
                                 msg.save(function (err, data) {
