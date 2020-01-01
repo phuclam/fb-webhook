@@ -273,6 +273,7 @@ function receivedMessage(event) {
 
     console.log("Received message from user %d to page %d at %d with message:",
         senderID, recipientID, timeOfMessage);
+    retrieveMessageInfo(message.mid, senderID, false);
     Recipient.findOneAndUpdate(
         {recipient_id: recipientID},
         {
@@ -282,66 +283,77 @@ function receivedMessage(event) {
         {upsert: true, new: true, setDefaultsOnInsert: true},
         function (error) {
             if (!error) {
-                retrieveMessageInfo(message.mid, senderID, false);
+
             }
         });
 }
 
 function retrieveMessageInfo(id, recipientID, owner) {
-    request({
-        uri: 'https://graph.facebook.com/' + id + '?fields=from,message,attachments,sticker,created_time',
-        qs: {access_token: PAGE_ACCESS_TOKEN},
-        method: 'GET'
-    }, function (error, response, body) {
-        if (!error && response.statusCode === 200) {
-            let data = JSON.parse(body);
-            let msg;
-            if (data.sticker) {
-                msg = new Message({
-                    sender_id: owner ? 'owner' : recipientID,
-                    recipient_id: recipientID,
-                    type: 'sticker',
-                    message_id: data.id,
-                    message_text: data.sticker,
-                    created: data.created_time,
-                });
-            } else if (data.attachments) {
-                let attachments = [];
-                data.attachments.data.forEach(function (i) {
-                    if (i.image_data) {
-                        attachments.push({type: 'image', url: i.image_data.url, preview_url: i.image_data.preview_url});
+    Recipient.findOneAndUpdate(
+        {recipient_id: recipientID},
+        {
+            type: 'Facebook',
+            last_message: new Date(),
+        },
+        {upsert: true, new: true, setDefaultsOnInsert: true},
+        function (error) {
+            if (!error) {
+                request({
+                    uri: 'https://graph.facebook.com/' + id + '?fields=from,message,attachments,sticker,created_time',
+                    qs: {access_token: PAGE_ACCESS_TOKEN},
+                    method: 'GET'
+                }, function (error, response, body) {
+                    if (!error && response.statusCode === 200) {
+                        let data = JSON.parse(body);
+                        let msg;
+                        if (data.sticker) {
+                            msg = new Message({
+                                sender_id: owner ? 'owner' : recipientID,
+                                recipient_id: recipientID,
+                                type: 'sticker',
+                                message_id: data.id,
+                                message_text: data.sticker,
+                                created: data.created_time,
+                            });
+                        } else if (data.attachments) {
+                            let attachments = [];
+                            data.attachments.data.forEach(function (i) {
+                                if (i.image_data) {
+                                    attachments.push({type: 'image', url: i.image_data.url, preview_url: i.image_data.preview_url});
+                                } else {
+                                    attachments.push({type: 'file', url: i.file_url, name: i.name});
+                                }
+                            });
+                            msg = new Message({
+                                sender_id: owner ? 'owner' : recipientID,
+                                recipient_id: recipientID,
+                                type: 'attachment',
+                                message_id: data.id,
+                                attachments: attachments,
+                                created: data.created_time,
+                            });
+                        } else {
+                            msg = new Message({
+                                sender_id: owner ? 'owner' : recipientID,
+                                recipient_id: recipientID,
+                                type: 'text',
+                                message_id: data.id,
+                                message_text: data.message,
+                                created: data.created_time,
+                            });
+                        }
+                        //Save Facebook Message
+                        msg.save(function (err, data) {
+                            if (!err) {
+                                io.emit('receivedMessage', recipientID, body, owner);
+                            }
+                        });
                     } else {
-                        attachments.push({type: 'file', url: i.file_url, name: i.name});
+                        console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
                     }
                 });
-                msg = new Message({
-                    sender_id: owner ? 'owner' : recipientID,
-                    recipient_id: recipientID,
-                    type: 'attachment',
-                    message_id: data.id,
-                    attachments: attachments,
-                    created: data.created_time,
-                });
-            } else {
-                msg = new Message({
-                    sender_id: owner ? 'owner' : recipientID,
-                    recipient_id: recipientID,
-                    type: 'text',
-                    message_id: data.id,
-                    message_text: data.message,
-                    created: data.created_time,
-                });
             }
-            //Save Facebook Message
-            msg.save(function (err, data) {
-                if (!err) {
-                    io.emit('receivedMessage', recipientID, body, owner);
-                }
-            });
-        } else {
-            console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
-        }
-    });
+        });
 }
 
 function sendMarkSeen(recipientID) {
