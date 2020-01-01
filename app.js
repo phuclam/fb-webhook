@@ -408,7 +408,7 @@ function receivedLineMessage(event) {
                             encoding: null
                         }, function (error, response, body) {
                             if (!error && response.statusCode === 200) {
-                                let dir = './uploads';
+                                let dir = './public/uploads';
                                 if (!fs.existsSync(dir)){
                                     fs.mkdirSync(dir);
                                 }
@@ -418,8 +418,8 @@ function receivedLineMessage(event) {
                                     recipient_id: event.source.userId,
                                     type: 'image',
                                     message_id: event.message.id,
-                                    attachment_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                    attachment_preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                    attachment_url: SERVER_URL + '/public/uploads/' + event.message.id + '.png',
+                                    attachment_preview_url: SERVER_URL + '/public/uploads/' + event.message.id + '.png',
                                 });
 
                                 msg.save(function (err, data) {
