@@ -51,10 +51,7 @@ var messageSchema = mongoose.Schema({
     type: String,
     message_id: String,
     message_text: String,
-    attachment_type: String,
-    attachment_url: String,
-    attachment_name: String,
-    attachment_preview_url: String,
+    attachments: Array,
     created: {type: Date, default: Date.now},
 }).plugin(mongoosePaginate);
 
@@ -297,7 +294,50 @@ function retrieveMessageInfo(id, recipientID, owner) {
         method: 'GET'
     }, function (error, response, body) {
         if (!error && response.statusCode === 200) {
-            io.emit('receivedMessage', recipientID, body, owner);
+            let data = JSON.parse(body);
+            let msg;
+            if (data.sticker) {
+                msg = new Message({
+                    sender_id: owner ? 'owner' : recipientID,
+                    recipient_id: recipientID,
+                    type: 'sticker',
+                    message_id: data.id,
+                    message_text: data.sticker,
+                    created: data.created_time,
+                });
+            } else if (data.attachments) {
+                let attachments = [];
+                data.attachments.data.forEach(function (i) {
+                    if (i.image_data) {
+                        attachments.push({type: 'image', url: i.image_data.url, preview_url: image_data.preview_url});
+                    } else {
+                        attachments.push({type: 'file', url: i.file_url, name: i.name});
+                    }
+                });
+                msg = new Message({
+                    sender_id: owner ? 'owner' : recipientID,
+                    recipient_id: recipientID,
+                    type: 'attachment',
+                    message_id: data.id,
+                    attachments: attachments,
+                    created: data.created_time,
+                });
+            } else {
+                msg = new Message({
+                    sender_id: owner ? 'owner' : recipientID,
+                    recipient_id: recipientID,
+                    type: 'text',
+                    message_id: data.id,
+                    message_text: data.message,
+                    created: data.created_time,
+                });
+            }
+            //Save Facebook Message
+            msg.save(function (err, data) {
+                if (!err) {
+                    io.emit('receivedMessage', recipientID, body, owner);
+                }
+            });
         } else {
             console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
         }
@@ -431,10 +471,15 @@ function receivedLineMessage(event) {
                                 let msg = new Message({
                                     sender_id: event.source.userId,
                                     recipient_id: event.source.userId,
-                                    type: 'image',
+                                    type: 'attachment',
                                     message_id: event.message.id,
-                                    attachment_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                    attachment_preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                    attachments: [
+                                        {
+                                            type: 'image',
+                                            url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                            preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                        }
+                                    ]
                                 });
 
                                 msg.save(function (err, data) {
