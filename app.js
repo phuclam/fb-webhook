@@ -58,6 +58,9 @@ var messageSchema = mongoose.Schema({
 }).plugin(mongoosePaginate);
 
 var recipientSchema = mongoose.Schema({
+    recipient_id: {type: String, unique: true},
+    name: String,
+    type: String,
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
 
@@ -368,21 +371,32 @@ function callSendAPI(messageData) {
 
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(event) {
-    switch (event.message.type) {
-        case 'text':
-            let msg = new Message({
-                recipient_id: event.source.userId,
-                type: 'text',
-                message_id: event.message.id,
-                message_text: event.message.text
-            });
-            msg.save(function (err, data) {
-                console.log('save', data);
-            });
-            break;
-        case 'image':
-            break;
-    }
+    Recipient.findOneAndUpdate(
+        {recipient_id: event.source.userId},
+        {last_message: new Date()},
+        {upsert: true, new: true, setDefaultsOnInsert: true }, function (error, result) {
+            if (!error) {
+                switch (event.message.type) {
+                    case 'text':
+                        let msg = new Message({
+                            recipient_id: event.source.userId,
+                            type: 'text',
+                            message_id: event.message.id,
+                            message_text: event.message.text
+                        });
+                        msg.save(function (err, data) {
+                            console.log('save', data);
+                        });
+                        break;
+                    case 'image':
+                        break;
+                }
+            } else {
+                console.log('------error recipient------');
+                console.log(error);
+                console.log('------end error recipient------');
+            }
+        });
 }
 /* ***************END LINE EVENT**************** */
 module.exports = app;
