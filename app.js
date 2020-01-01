@@ -398,6 +398,7 @@ function receivedLineMessage(event) {
                         });
                         break;
                     case 'image':
+                        console.log(event.message);
                         break;
                 }
             } else {
