@@ -371,27 +371,14 @@ function callSendAPI(messageData) {
 
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(event) {
-    Recipient.findOne({recipient_id: event.source.userId}, function (error, data) {
-        console.log(error);
-        console.log(data);
-    })
-    /*request({
-        url: 'https://api.line.me/v2/bot/profile/Uba9b9ca473ba93eacad5d9fe964f6264',
-        headers : {
-            'Authorization' : 'Bearer ' + LINE_ACCESS_TOKEN
-        },
-        method: 'GET',
-    }, function (error, response, body) {
-        console.log(response.statusCode);
-        let data = JSON.parse(body);
-    });*/
-    /*Recipient.findOneAndUpdate(
+    Recipient.findOneAndUpdate(
         {recipient_id: event.source.userId},
         {
-            name: '',
+            type: 'Line',
             last_message: new Date(),
         },
-        {upsert: true, new: true, setDefaultsOnInsert: true }, function (error, result) {
+        {upsert: true, new: true, setDefaultsOnInsert: true },
+        function (error) {
             if (!error) {
                 switch (event.message.type) {
                     case 'text':
@@ -413,7 +400,7 @@ function receivedLineMessage(event) {
                 console.log(error);
                 console.log('------end error recipient------');
             }
-        });*/
+        });
 }
 /* ***************END LINE EVENT**************** */
 module.exports = app;
