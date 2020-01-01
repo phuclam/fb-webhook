@@ -309,7 +309,7 @@ function retrieveMessageInfo(id, recipientID, owner) {
                 let attachments = [];
                 data.attachments.data.forEach(function (i) {
                     if (i.image_data) {
-                        attachments.push({type: 'image', url: i.image_data.url, preview_url: image_data.preview_url});
+                        attachments.push({type: 'image', url: i.image_data.url, preview_url: i.image_data.preview_url});
                     } else {
                         attachments.push({type: 'file', url: i.file_url, name: i.name});
                     }
