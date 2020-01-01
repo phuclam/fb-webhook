@@ -274,18 +274,6 @@ function receivedMessage(event) {
     console.log("Received message from user %d to page %d at %d with message:",
         senderID, recipientID, timeOfMessage);
     retrieveMessageInfo(message.mid, senderID, false);
-    Recipient.findOneAndUpdate(
-        {recipient_id: recipientID},
-        {
-            type: 'Facebook',
-            last_message: new Date(),
-        },
-        {upsert: true, new: true, setDefaultsOnInsert: true},
-        function (error) {
-            if (!error) {
-
-            }
-        });
 }
 
 function retrieveMessageInfo(id, recipientID, owner) {
