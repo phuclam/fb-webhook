@@ -114,7 +114,21 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         res.sendStatus(200);
     });
 
-    app.get('/api/conversations')
+    app.post('/api/conversations', function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+
+        Recipient.paginate({}, {
+            sort: '-last_message',
+            page: 1,
+            limit: 10
+        }, function (err, result) {
+            let data = result.docs;
+            res.json(data);
+        });
+
+    });
 });
 
 /*
@@ -222,6 +236,15 @@ function verifyRequestSignature(req, res, buf) {
     else if(req.headers["x-line-signature"]) {
         let signature = req.headers["x-line-signature"];
         let expectedHash = crypto.createHmac('SHA256', LINE_CHANNEL_SECRET).update(buf).digest('base64');
+        if (signature === expectedHash) {
+            res.signature_matched = true;
+        }
+    }
+    //verify CRM
+    else if(req.headers["x-crm-signature"]) {
+        let signature = req.headers["x-crm-signature"];
+        let expectedHash = crypto.createHmac('SHA256', 'arzqvfom4121xv9vidfp').update(buf).digest('base64');
+
         if (signature === expectedHash) {
             res.signature_matched = true;
         }
