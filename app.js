@@ -114,21 +114,74 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         res.sendStatus(200);
     });
 
-    app.post('/api/conversations', function (req, res) {
+    app.post('/api/conversations', async function (req, res) {
         if (!res.signature_matched) {
             return res.sendStatus(403);
         }
 
-        Recipient.paginate({}, {
-            sort: '-last_message',
-            page: 1,
-            limit: 10
-        }, function (err, result) {
-            let data = result.docs;
-            res.json(data);
-        });
+        const resPerPage = parseInt(req.query.limit) || 15;
+        const page = parseInt(req.query.page) || 1;
+        try {
+            let output = [];
+            const recipients = await Recipient.find()
+                .sort('-last_message')
+                .skip((resPerPage * page) - resPerPage)
+                .limit(resPerPage);
+            const count = await Recipient.estimatedDocumentCount();
+            const max = Math.ceil(count / resPerPage);
 
+            for (const recipient of recipients) {
+                let msg = await Message.findOne({recipient_id: recipient.recipient_id}).sort('-created');
+                let message = {};
+                if (msg) {
+                    message = {
+                        type: msg.type,
+                        text: msg.type === 'text' ? msg.message_text : '('+msg.type+')',
+                        created: msg.created
+                    }
+                }
+                output.push({
+                    id: recipient.recipient_id,
+                    updated_time: recipient.last_message,
+                    type: recipient.type,
+                    message: message
+                });
+            }
+
+            res.json({
+                data: output,
+                next: (page + 1) <= max ? (page + 1) : '',
+            });
+        } catch (err) {
+            throw new Error(err);
+        }
     });
+
+    app.post('/api/messages', async function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+
+        const resPerPage = parseInt(req.query.limit) || 15;
+        const page = parseInt(req.query.page) || 1;
+        const recipientId = req.query.recipient;
+
+        try {
+            const messages = await Message.find({recipient_id : recipientId})
+                .sort('-created')
+                .skip((resPerPage * page) - resPerPage)
+                .limit(resPerPage);
+            const count = await Message.find({recipient_id : recipientId}).countDocuments();
+            const max = Math.ceil(count / resPerPage);
+
+            res.json({
+                data: messages,
+                next: (page + 1) <= max ? (page + 1) : '',
+            });
+        } catch (err) {
+            throw new Error(err);
+        }
+    })
 });
 
 /*
