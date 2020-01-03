@@ -123,11 +123,18 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         const page = parseInt(req.query.page) || 1;
         try {
             let output = [];
-            const recipients = await Recipient.find()
-                .sort('-last_message')
-                .skip((resPerPage * page) - resPerPage)
-                .limit(resPerPage);
-            const count = await Recipient.estimatedDocumentCount();
+            if (req.query.recipient) {
+                const recipients = await Recipient.find({recipient_id: req.query.recipient}).limit(1);
+                const count = await Recipient.find({recipient_id : req.query.recipient}).countDocuments();
+            } else {
+                const recipients = await Recipient.find()
+                    .sort('-last_message')
+                    .skip((resPerPage * page) - resPerPage)
+                    .limit(resPerPage);
+                const count = await Recipient.estimatedDocumentCount();
+            }
+
+
             const max = Math.ceil(count / resPerPage);
 
             for (const recipient of recipients) {
