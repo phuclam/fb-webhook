@@ -554,11 +554,11 @@ function receivedLineMessage(event) {
         },
         encoding: null
     }, function (err, res, body) {
-        let data = JSON.parse(body);
+        let profile = JSON.parse(body);
         Recipient.findOneAndUpdate(
             {recipient_id: event.source.userId},
             {
-                recipient_name: data.displayName,
+                recipient_name: profile.displayName,
                 type: 'Line',
                 last_message: new Date(),
             },
@@ -576,7 +576,16 @@ function receivedLineMessage(event) {
                             });
                             msg.save(function (err, data) {
                                 if (!err) {
-                                    io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
+                                    let obj = {
+                                        from: {
+                                            name: profile.displayName,
+                                            id: profile.userId,
+                                        },
+                                        message: event.message.text,
+                                        id: event.message.id,
+                                        created_time: data.created
+                                    };
+                                    io.emit('receivedMessage', event.source.userId, JSON.stringify(obj), false);
                                 }
                             });
                             break;
@@ -612,7 +621,25 @@ function receivedLineMessage(event) {
 
                                     msg.save(function (err, data) {
                                         if (!err) {
-                                            io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
+                                            let obj = {
+                                                from: {
+                                                    name: profile.displayName,
+                                                    id: profile.userId,
+                                                },
+                                                attachments: {
+                                                    data: [
+                                                        {
+                                                            image_data: {
+                                                                url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                                                preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                id: event.message.id,
+                                                created_time: data.created
+                                            };
+                                            io.emit('receivedMessage', event.source.userId, JSON.stringify(obj), false);
                                         }
                                     });
                                 }
