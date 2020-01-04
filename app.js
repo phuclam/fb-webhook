@@ -57,7 +57,7 @@ var messageSchema = mongoose.Schema({
 
 var recipientSchema = mongoose.Schema({
     recipient_id: {type: String, unique: true},
-    name: String,
+    recipient_name: String,
     type: String,
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
