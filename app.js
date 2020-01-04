@@ -123,21 +123,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         const page = parseInt(req.query.page) || 1;
         try {
             let output = [];
+            let next;
             if (req.query.recipient) {
-                const recipients = await Recipient.find({recipient_id: req.query.recipient}).limit(1);
-                const count = await Recipient.find({recipient_id : req.query.recipient}).countDocuments();
-            } else {
-                const recipients = await Recipient.find()
-                    .sort('-last_message')
-                    .skip((resPerPage * page) - resPerPage)
-                    .limit(resPerPage);
-                const count = await Recipient.estimatedDocumentCount();
-            }
-
-
-            const max = Math.ceil(count / resPerPage);
-
-            for (const recipient of recipients) {
+                const recipient = await Recipient.findOne({recipient_id: req.query.recipient});
                 let msg = await Message.findOne({recipient_id: recipient.recipient_id}).sort('-created');
                 let message = {};
                 if (msg) {
@@ -153,11 +141,38 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     type: recipient.type,
                     message: message
                 });
+                next = '';
+            } else {
+                const recipients = await Recipient.find()
+                    .sort('-last_message')
+                    .skip((resPerPage * page) - resPerPage)
+                    .limit(resPerPage);
+                const count = await Recipient.estimatedDocumentCount();
+                const max = Math.ceil(count / resPerPage);
+
+                for (const recipient of recipients) {
+                    let msg = await Message.findOne({recipient_id: recipient.recipient_id}).sort('-created');
+                    let message = {};
+                    if (msg) {
+                        message = {
+                            type: msg.type,
+                            text: msg.type === 'text' ? msg.message_text : '('+msg.type+')',
+                            created: msg.created
+                        }
+                    }
+                    output.push({
+                        id: recipient.recipient_id,
+                        updated_time: recipient.last_message,
+                        type: recipient.type,
+                        message: message
+                    });
+                }
+                next = (page + 1) <= max ? (page + 1) : ''
             }
 
             res.json({
                 data: output,
-                next: (page + 1) <= max ? (page + 1) : '',
+                next: next,
             });
         } catch (err) {
             throw new Error(err);
