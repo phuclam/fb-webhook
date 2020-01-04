@@ -35,7 +35,7 @@ var server = app.listen(5000);
 app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", ALLOW_ORIGIN);
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -131,7 +131,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 if (msg) {
                     message = {
                         type: msg.type,
-                        text: msg.type === 'text' ? msg.message_text : '('+msg.type+')',
+                        text: msg.type === 'text' ? msg.message_text : '(' + msg.type + ')',
                         created: msg.created
                     }
                 }
@@ -156,7 +156,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     if (msg) {
                         message = {
                             type: msg.type,
-                            text: msg.type === 'text' ? msg.message_text : '('+msg.type+')',
+                            text: msg.type === 'text' ? msg.message_text : '(' + msg.type + ')',
                             created: msg.created
                         }
                     }
@@ -189,11 +189,11 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         const recipientId = req.query.recipient;
 
         try {
-            const messages = await Message.find({recipient_id : recipientId})
+            const messages = await Message.find({recipient_id: recipientId})
                 .sort('-created')
                 .skip((resPerPage * page) - resPerPage)
                 .limit(resPerPage);
-            const count = await Message.find({recipient_id : recipientId}).countDocuments();
+            const count = await Message.find({recipient_id: recipientId}).countDocuments();
             const max = Math.ceil(count / resPerPage);
 
             res.json({
@@ -308,7 +308,7 @@ function verifyRequestSignature(req, res, buf) {
         }
     }
     //verify Line
-    else if(req.headers["x-line-signature"]) {
+    else if (req.headers["x-line-signature"]) {
         let signature = req.headers["x-line-signature"];
         let expectedHash = crypto.createHmac('SHA256', LINE_CHANNEL_SECRET).update(buf).digest('base64');
         if (signature === expectedHash) {
@@ -316,7 +316,7 @@ function verifyRequestSignature(req, res, buf) {
         }
     }
     //verify CRM
-    else if(req.headers["x-crm-signature"]) {
+    else if (req.headers["x-crm-signature"]) {
         let signature = req.headers["x-crm-signature"];
         let expectedHash = crypto.createHmac('SHA256', 'arzqvfom4121xv9vidfp').update(buf).digest('base64');
 
@@ -375,71 +375,87 @@ function receivedMessage(event) {
 }
 
 function retrieveMessageInfo(id, recipientID, owner) {
-    Recipient.findOneAndUpdate(
-        {recipient_id: recipientID},
-        {
-            type: 'Facebook',
-            last_message: new Date(),
-        },
-        {upsert: true, new: true, setDefaultsOnInsert: true},
-        function (error) {
-            if (!error) {
-                request({
-                    uri: 'https://graph.facebook.com/' + id + '?fields=from,message,attachments,sticker,created_time',
-                    qs: {access_token: PAGE_ACCESS_TOKEN},
-                    method: 'GET'
-                }, function (error, response, body) {
-                    if (!error && response.statusCode === 200) {
-                        let data = JSON.parse(body);
-                        let msg;
-                        if (data.sticker) {
-                            msg = new Message({
-                                sender_id: owner ? 'owner' : recipientID,
-                                recipient_id: recipientID,
-                                type: 'sticker',
-                                message_id: data.id,
-                                message_text: data.sticker,
-                                created: data.created_time,
-                            });
-                        } else if (data.attachments) {
-                            let attachments = [];
-                            data.attachments.data.forEach(function (i) {
-                                if (i.image_data) {
-                                    attachments.push({type: 'image', url: i.image_data.url, preview_url: i.image_data.preview_url});
+    request({
+        uri: 'https://graph.facebook.com/v5.0/' + recipientID + '?fields=name',
+        qs: {access_token: PAGE_ACCESS_TOKEN},
+        method: 'GET'
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            let result = JSON.parse(body);
+            Recipient.findOneAndUpdate(
+                {recipient_id: recipientID},
+                {
+                    recipient_name: result.name,
+                    type: 'Facebook',
+                    last_message: new Date(),
+                },
+                {upsert: true, new: true, setDefaultsOnInsert: true},
+                function (error) {
+                    if (!error) {
+                        request({
+                            uri: 'https://graph.facebook.com/v5.0/' + id + '?fields=from,message,attachments,sticker,created_time',
+                            qs: {access_token: PAGE_ACCESS_TOKEN},
+                            method: 'GET'
+                        }, function (error, response, body) {
+                            if (!error && response.statusCode === 200) {
+                                let data = JSON.parse(body);
+                                let msg;
+                                if (data.sticker) {
+                                    msg = new Message({
+                                        sender_id: owner ? 'owner' : recipientID,
+                                        recipient_id: recipientID,
+                                        type: 'sticker',
+                                        message_id: data.id,
+                                        message_text: data.sticker,
+                                        created: data.created_time,
+                                    });
+                                } else if (data.attachments) {
+                                    let attachments = [];
+                                    data.attachments.data.forEach(function (i) {
+                                        if (i.image_data) {
+                                            attachments.push({
+                                                type: 'image',
+                                                url: i.image_data.url,
+                                                preview_url: i.image_data.preview_url
+                                            });
+                                        } else {
+                                            attachments.push({type: 'file', url: i.file_url, name: i.name});
+                                        }
+                                    });
+                                    msg = new Message({
+                                        sender_id: owner ? 'owner' : recipientID,
+                                        recipient_id: recipientID,
+                                        type: 'attachment',
+                                        message_id: data.id,
+                                        attachments: attachments,
+                                        created: data.created_time,
+                                    });
                                 } else {
-                                    attachments.push({type: 'file', url: i.file_url, name: i.name});
+                                    msg = new Message({
+                                        sender_id: owner ? 'owner' : recipientID,
+                                        recipient_id: recipientID,
+                                        type: 'text',
+                                        message_id: data.id,
+                                        message_text: data.message,
+                                        created: data.created_time,
+                                    });
                                 }
-                            });
-                            msg = new Message({
-                                sender_id: owner ? 'owner' : recipientID,
-                                recipient_id: recipientID,
-                                type: 'attachment',
-                                message_id: data.id,
-                                attachments: attachments,
-                                created: data.created_time,
-                            });
-                        } else {
-                            msg = new Message({
-                                sender_id: owner ? 'owner' : recipientID,
-                                recipient_id: recipientID,
-                                type: 'text',
-                                message_id: data.id,
-                                message_text: data.message,
-                                created: data.created_time,
-                            });
-                        }
-                        //Save Facebook Message
-                        msg.save(function (err, data) {
-                            if (!err) {
-                                io.emit('receivedMessage', recipientID, body, owner);
+                                //Save Facebook Message
+                                msg.save(function (err, data) {
+                                    if (!err) {
+                                        io.emit('receivedMessage', recipientID, body, owner);
+                                    }
+                                });
+                            } else {
+                                console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
                             }
                         });
-                    } else {
-                        console.error("Failed retrieving Message info", response.statusCode, response.statusMessage, body.error);
                     }
                 });
-            }
-        });
+        } else {
+            console.log('Fail to retrieve user info', res.statusCode, res.statusMessage, body.error)
+        }
+    });
 }
 
 function sendMarkSeen(recipientID) {
@@ -478,6 +494,7 @@ function sendAttachment(recipientID, url, type) {
 
     callSendAPI(messageData);
 }
+
 /*
  * Send a text message using the Send API.
  *
@@ -496,6 +513,7 @@ function sendTextMessage(recipientID, messageText) {
 
     callSendAPI(messageData);
 }
+
 /*
  * Call the Send API. The message data goes in the body. If successful, we'll
  * get the message id in a response
@@ -526,77 +544,89 @@ function callSendAPI(messageData) {
 
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(event) {
-    Recipient.findOneAndUpdate(
-        {recipient_id: event.source.userId},
-        {
-            type: 'Line',
-            last_message: new Date(),
+    request({
+        url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN
         },
-        {upsert: true, new: true, setDefaultsOnInsert: true },
-        function (error) {
-            if (!error) {
-                switch (event.message.type) {
-                    case 'text':
-                        let msg = new Message({
-                            sender_id: event.source.userId,
-                            recipient_id: event.source.userId,
-                            type: 'text',
-                            message_id: event.message.id,
-                            message_text: event.message.text
-                        });
-                        msg.save(function (err, data) {
-                            if (!err) {
-                                io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
-                            }
-                        });
-                        break;
-                    case 'image':
-                        request({
-                            url: 'https://api-data.line.me/v2/bot/message/'+event.message.id+'/content',
-                            method: 'GET',
-                            headers: {
-                                'Authorization' : 'Bearer ' + LINE_ACCESS_TOKEN
-                            },
-                            encoding: null
-                        }, function (error, response, body) {
-                            if (!error && response.statusCode === 200) {
-                                let dir = './public/uploads';
-                                if (!fs.existsSync(dir)){
-                                    fs.mkdirSync(dir);
+        encoding: null
+    }, function (err, res, body) {
+        let data = JSON.parse(body);
+        Recipient.findOneAndUpdate(
+            {recipient_id: event.source.userId},
+            {
+                recipient_name: data.displayName,
+                type: 'Line',
+                last_message: new Date(),
+            },
+            {upsert: true, new: true, setDefaultsOnInsert: true},
+            function (error) {
+                if (!error) {
+                    switch (event.message.type) {
+                        case 'text':
+                            let msg = new Message({
+                                sender_id: event.source.userId,
+                                recipient_id: event.source.userId,
+                                type: 'text',
+                                message_id: event.message.id,
+                                message_text: event.message.text
+                            });
+                            msg.save(function (err, data) {
+                                if (!err) {
+                                    io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
                                 }
-                                fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
-
-                                let msg = new Message({
-                                    sender_id: event.source.userId,
-                                    recipient_id: event.source.userId,
-                                    type: 'attachment',
-                                    message_id: event.message.id,
-                                    attachments: [
-                                        {
-                                            type: 'image',
-                                            url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                            preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                        }
-                                    ]
-                                });
-
-                                msg.save(function (err, data) {
-                                    if (!err) {
-                                        io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
+                            });
+                            break;
+                        case 'image':
+                            request({
+                                url: 'https://api-data.line.me/v2/bot/message/' + event.message.id + '/content',
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN
+                                },
+                                encoding: null
+                            }, function (error, response, body) {
+                                if (!error && response.statusCode === 200) {
+                                    let dir = './public/uploads';
+                                    if (!fs.existsSync(dir)) {
+                                        fs.mkdirSync(dir);
                                     }
-                                });
-                            }
-                        });
-                        break;
-                    default:
-                        console.log('----Received a Line message: This file type ' + event.message.type + ' does not support yet.')
+                                    fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
+
+                                    let msg = new Message({
+                                        sender_id: event.source.userId,
+                                        recipient_id: event.source.userId,
+                                        type: 'attachment',
+                                        message_id: event.message.id,
+                                        attachments: [
+                                            {
+                                                type: 'image',
+                                                url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                                preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                            }
+                                        ]
+                                    });
+
+                                    msg.save(function (err, data) {
+                                        if (!err) {
+                                            io.emit('receivedMessage', event.source.userId, JSON.stringify({}), false);
+                                        }
+                                    });
+                                }
+                            });
+                            break;
+                        default:
+                            console.log('----Received a Line message: This file type ' + event.message.type + ' does not support yet.')
+                    }
+                } else {
+                    console.log('------error recipient------');
+                    console.log(error);
+                    console.log('------end error recipient------');
                 }
-            } else {
-                console.log('------error recipient------');
-                console.log(error);
-                console.log('------end error recipient------');
-            }
-        });
+            });
+    });
 }
+
 /* ***************END LINE EVENT**************** */
 module.exports = app;
