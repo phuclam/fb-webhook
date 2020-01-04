@@ -7,6 +7,7 @@ const bodyParser = require('body-parser'),
     https = require('https'),
     request = require('request'),
     fs = require('fs'),
+    uuid = require('uuid/v4'),
     mongoose = require('mongoose'),
     mongoosePaginate = require('mongoose-paginate');
 
@@ -49,7 +50,7 @@ var messageSchema = mongoose.Schema({
     sender_id: String,
     recipient_id: String,
     type: String,
-    message_id: String,
+    message_id: {type: String, default: uuid()},
     message_text: String,
     attachments: Array,
     created: {type: Date, default: Date.now},
@@ -80,8 +81,13 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         console.log('A new Client has just been connected');
         socket.on('disconnect', () => console.log('Client disconnected'));
         //Send message
-        socket.on('sendMessage', function (recipientID, messageText) {
-            sendTextMessage(recipientID, messageText);
+        socket.on('sendMessage', function (type, recipientID, messageText) {
+            if (type === 'Facebook') {
+                sendTextMessage(recipientID, messageText);
+            } else if (type === 'Line') {
+                sendLineTextMessage(recipientID, messageText);
+            }
+
         });
         //Send attachment from url
         socket.on('sendAttachment', function (recipientID, url, type) {
@@ -654,6 +660,41 @@ function receivedLineMessage(event) {
                     console.log('------end error recipient------');
                 }
             });
+    });
+}
+
+function sendLineTextMessage(recipientID, messageText) {
+    request({
+        url: 'https://api.line.me/v2/bot/message/push',
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            to: recipientID,
+            messages:[{type: "text", text: messageText}]})
+    }, function (err, res, body) {
+        let msg = new Message({
+            sender_id: 'owner',
+            recipient_id: recipientID,
+            type: 'text',
+            message_text: messageText
+        });
+        msg.save(function (err, data) {
+            if (!err) {
+                let obj = {
+                    from: {
+                        name: 'Admin',
+                        id: 'owner',
+                    },
+                    message: data.message_text,
+                    id: data.message_id,
+                    created_time: data.created
+                };
+                io.emit('receivedMessage', recipientID, JSON.stringify(obj), false);
+            }
+        });
     });
 }
 
