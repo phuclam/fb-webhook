@@ -714,40 +714,15 @@ function sendLineImage(recipientID, url, previewUrl) {
             to: recipientID,
             messages:[{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]})
     }, function (err, res, body) {
-        let messageId = uuid();
-        let uploadDir = './public/uploads';
-        let thumbDir = uploadDir + '/thumb';
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir);
-        }
-        if (!fs.existsSync(thumbDir)) {
-            fs.mkdirSync(thumbDir);
-        }
-        let localPathOriginal = uploadDir + '/' + messageId + '.png';
-        let localPathThumbnail = thumbDir + '/' + messageId + '.png';
-
-
-
-        let originalFile = fs.createWriteStream(localPathOriginal);
-        request.head(url, async function() {
-            await request(url).pipe(originalFile);
-        });
-
-        let thumbFile = fs.createWriteStream(localPathThumbnail);
-        request.head(previewUrl, async function() {
-            await request(previewUrl).pipe(thumbFile);
-        });
-
         let msg = new Message({
             sender_id: 'owner',
-            recipient_id: 'recipientID',
+            recipient_id: recipientID,
             type: 'attachment',
-            message_id: messageId,
             attachments: [
                 {
                     type: 'image',
-                    url: SERVER_URL + '/uploads/' + messageId + '.png',
-                    preview_url: SERVER_URL + '/uploads/thumb/' + messageId + '.png',
+                    url: url,
+                    preview_url: previewUrl,
                 }
             ]
         });
@@ -763,8 +738,8 @@ function sendLineImage(recipientID, url, previewUrl) {
                         data: [
                             {
                                 image_data: {
-                                    url: SERVER_URL + '/uploads/' + data.message_id + '.png',
-                                    preview_url: SERVER_URL + '/uploads/thumb/' + data.message_id + '.png',
+                                    url: url,
+                                    preview_url: previewUrl,
                                 }
                             }
                         ]
