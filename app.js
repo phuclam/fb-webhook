@@ -90,8 +90,12 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
 
         });
         //Send attachment from url
-        socket.on('sendAttachment', function (recipientID, url, type) {
-            sendAttachment(recipientID, url, type);
+        socket.on('sendAttachment', function (type, recipientID, fileType, url, previewUrl) {
+            if (type === 'Line') {
+                sendLineImage(recipientID, url, previewUrl);
+            } else if (type === 'Facebook') {
+                sendAttachment(recipientID, url, fileType);
+            }
         });
         //Mark as seen
         socket.on('seen', function (recipientID) {
@@ -689,6 +693,82 @@ function sendLineTextMessage(recipientID, messageText) {
                         id: 'owner',
                     },
                     message: data.message_text,
+                    id: data.message_id,
+                    created_time: data.created
+                };
+                io.emit('receivedMessage', recipientID, JSON.stringify(obj), true);
+            }
+        });
+    });
+}
+
+function sendLineImage(recipientID, url, previewUrl) {
+    request({
+        url: 'https://api.line.me/v2/bot/message/push',
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            to: recipientID,
+            messages:[{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]})
+    }, function (err, res, body) {
+        let messageId = uuid();
+        let uploadDir = './public/uploads';
+        let thumbDir = uploadDir + '/thumb';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir);
+        }
+        if (!fs.existsSync(thumbDir)) {
+            fs.mkdirSync(thumbDir);
+        }
+        let localPathOriginal = uploadDir + '/' + messageId + '.png';
+        let localPathThumbnail = thumbDir + '/' + messageId + '.png';
+
+
+
+        let originalFile = fs.createWriteStream(localPathOriginal);
+        https.get(url, async function(response) {
+            await response.pipe(originalFile);
+        });
+
+        let thumbFile = fs.createWriteStream(localPathThumbnail);
+        https.get(url, async function(response) {
+            await response.pipe(thumbFile);
+        });
+
+        let msg = new Message({
+            sender_id: 'owner',
+            recipient_id: 'recipientID',
+            type: 'attachment',
+            message_id: messageId,
+            attachments: [
+                {
+                    type: 'image',
+                    url: SERVER_URL + '/uploads/' + messageId + '.png',
+                    preview_url: SERVER_URL + '/uploads/thumb/' + messageId + '.png',
+                }
+            ]
+        });
+
+        msg.save(function (err, data) {
+            if (!err) {
+                let obj = {
+                    from: {
+                        name: 'Admin',
+                        id: 'owner',
+                    },
+                    attachments: {
+                        data: [
+                            {
+                                image_data: {
+                                    url: SERVER_URL + '/uploads/' + data.message_id + '.png',
+                                    preview_url: SERVER_URL + '/uploads/thumb/' + data.message_id + '.png',
+                                }
+                            }
+                        ]
+                    },
                     id: data.message_id,
                     created_time: data.created
                 };
