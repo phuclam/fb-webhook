@@ -747,7 +747,7 @@ function sendLineImage(recipientID, url, previewUrl) {
                     id: data.message_id,
                     created_time: data.created
                 };
-                io.emit('receivedMessage', recipientID, JSON.stringify(obj), false);
+                io.emit('receivedMessage', recipientID, JSON.stringify(obj), true);
             }
         });
     });
