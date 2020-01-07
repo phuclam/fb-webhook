@@ -729,13 +729,13 @@ function sendLineImage(recipientID, url, previewUrl) {
 
 
         let originalFile = fs.createWriteStream(localPathOriginal);
-        https.get(url, async function(response) {
-            await response.pipe(originalFile);
+        request.head(url, async function() {
+            await request(url).pipe(originalFile);
         });
 
         let thumbFile = fs.createWriteStream(localPathThumbnail);
-        https.get(url, async function(response) {
-            await response.pipe(thumbFile);
+        request.head(previewUrl, async function() {
+            await request(previewUrl).pipe(thumbFile);
         });
 
         let msg = new Message({
