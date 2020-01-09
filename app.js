@@ -285,28 +285,40 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
 
     app.post('/live-chat-start', function (req, res) {
         let data = req.body;
-        let configData = JSON.parse(fs.readFileSync('incoming_chat_thread.json'));
-        if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
-            console.log('--start chat--');
-            console.log(data);
+        try {
+            let configData = JSON.parse(fs.readFileSync('incoming_chat_thread.json'));
+            if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
+                console.log('--start chat--');
+                console.log(data);
+            }
+        } catch (e) {
+            // keep silent
         }
     });
 
     app.post('/live-chat-close', function (req, res) {
         let data = req.body;
-        let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
-        if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
-            console.log('--close chat--');
-            console.log(data);
+        try {
+            let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
+            if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
+                console.log('--close chat--');
+                console.log(data);
+            }
+        } catch (e) {
+            // keep silent
         }
     });
 
     app.post('/live-chat-incoming-event', function (req, res) {
         let data = req.body;
-        let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
-        if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
-            console.log('--incoming event--');
-            console.log(data);
+        try {
+            let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
+            if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
+                console.log('--incoming event--');
+                console.log(data);
+            }
+        } catch (e) {
+            // keep silent
         }
     });
 
