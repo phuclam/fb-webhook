@@ -994,6 +994,9 @@ function markSeenLiveChat(chatId, time) {
     }, function (err, res, body)  {
         if (!err && res.statusCode === 200) {
             console.log('--- mark seen ----', new Date());
+        } else {
+            console.log(err)
+            console.log(chatId + ' ---- ' + time);
         }
     });
 }
