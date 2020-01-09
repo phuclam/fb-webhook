@@ -10,6 +10,7 @@ const bodyParser = require('body-parser'),
     uuid = require('uuid/v4'),
     mongoose = require('mongoose'),
     mongoosePaginate = require('mongoose-paginate'),
+    md5 = require('md5'),
     ChatSDK = require('@livechat/chat-sdk');
 
 // Origin
@@ -281,7 +282,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         if (data.payload.chat.users[0]) {
             let recipient = data.payload.chat.users[0];
             Recipient.findOneAndUpdate(
-                {recipient_id: recipient.email.toLowerCase()},
+                {recipient_id: md5(recipient.email.toLowerCase())},
                 {
                     recipient_name: recipient.name,
                     type: 'LiveChat',
@@ -291,6 +292,47 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 {upsert: true, new: true, setDefaultsOnInsert: true},
                 function (error) {
                     //do nothing
+                });
+        }
+    });
+
+    chatSDK.on('incoming_event', (data) => {
+        let event = data.payload.event;
+        if (event.type === 'message') {
+            Recipient.findOneAndUpdate(
+                {live_user_id: event.author_id},
+                {
+                    last_message: new Date(),
+                },
+                {upsert: true, new: true, setDefaultsOnInsert: true},
+                function (error, res) {
+                    if (!error) {
+                        let msg = new Message({
+                            sender_id: res.recipient_id,
+                            recipient_id: res.recipient_id,
+                            type: 'text',
+                            message_id: event.id,
+                            message_text: event.text
+                        });
+                        msg.save(function (err, data) {
+                            if (!err) {
+                                let obj = {
+                                    from: {
+                                        name: res.recipient_name,
+                                        id: res.recipient_id,
+                                    },
+                                    message: data.message_text,
+                                    id: data.message_id,
+                                    created_time: data.created
+                                };
+                                io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
+                            }
+                        });
+                    } else {
+                        console.log('------error recipient------');
+                        console.log(error);
+                        console.log('------end error recipient------');
+                    }
                 });
         }
     });
