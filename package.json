@@ -15,6 +15,7 @@
   "author": "Phuc Lam",
   "license": "ISC",
   "dependencies": {
+    "@livechat/chat-sdk": "^0.1.1",
     "body-parser": "^1.15.0",
     "config": "^1.20.4",
     "dotenv": "^8.2.0",
