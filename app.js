@@ -67,6 +67,7 @@ var recipientSchema = mongoose.Schema({
     recipient_id: {type: String, unique: true},
     recipient_name: String,
     type: String,
+    live_user_id: String,
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
 
@@ -74,7 +75,7 @@ var Message = mongoose.model('messages', messageSchema);
 var Recipient = mongoose.model('recipients', recipientSchema);
 
 //Live chat
-const chatSDK = new ChatSDK({ debug: true });
+const chatSDK = new ChatSDK({debug: true});
 
 /*
 //secret: f6b3d6e6f93d3b2200ad11b3d13db1e9
@@ -277,12 +278,24 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     });
 
     chatSDK.on('incoming_chat_thread', (data) => {
-        console.log('----start chat---');
-        console.log(data.payload.chat);
-        console.log('----end start chat---');
+        if (data.users[0].email) {
+            let recipient = data.users[0];
+            Recipient.findOneAndUpdate(
+                {recipient_id: recipient.email.toLowerCase()},
+                {
+                    recipient_name: recipient.name,
+                    type: 'LiveChat',
+                    live_user_id: recipient.id,
+                    last_message: new Date()
+                },
+                {upsert: true, new: true, setDefaultsOnInsert: true},
+                function (error) {
+                    //do nothing
+                });
+        }
     });
 
-    chatSDK.on('agent_disconnected', function() {
+    chatSDK.on('agent_disconnected', function () {
         refreshLiveChatToken().then((data) => {
             chatSDK.init({
                 access_token: data.access_token
@@ -758,7 +771,8 @@ function sendLineTextMessage(recipientID, messageText) {
         },
         body: JSON.stringify({
             to: recipientID,
-            messages:[{type: "text", text: messageText}]})
+            messages: [{type: "text", text: messageText}]
+        })
     }, function (err, res, body) {
         let msg = new Message({
             sender_id: 'owner',
@@ -793,7 +807,8 @@ function sendLineImage(recipientID, url, previewUrl) {
         },
         body: JSON.stringify({
             to: recipientID,
-            messages:[{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]})
+            messages: [{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]
+        })
     }, function (err, res, body) {
         let msg = new Message({
             sender_id: 'owner',
@@ -920,7 +935,7 @@ function registerLiveChatWebHook(configData) {
             name: 'Support',
             status: 'accepting chats'
         })
-    }, function (err, res, body)  {
+    }, function (err, res, body) {
         if (!err && res.statusCode === 200) {
             console.log('A chat bot has bean created !');
             console.log(body);
@@ -941,7 +956,7 @@ function markSeenLiveChat(chatId, time) {
             chat_id: chatId,
             seen_up_to: time
         })
-    }, function (err, res, body)  {
+    }, function (err, res, body) {
         if (!err && res.statusCode === 200) {
             console.log('--- mark seen ----', new Date());
         } else {
@@ -957,30 +972,31 @@ async function refreshLiveChatToken() {
             let config = fs.readFileSync(LIVECHAT_CONFIG_FILE);
             let configData = JSON.parse(config);
 
-                request({
-                    url: 'https://accounts.livechatinc.com/token',
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        grant_type: "refresh_token",
-                        refresh_token: configData.refresh_token,
-                        client_id: LIVECHAT_CLIENT_ID,
-                        client_secret: LIVECHAT_CLIENT_SECRET
-                    })
-                }, function (error, response, body) {
-                    if (!error && response.statusCode === 200) {
-                        fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
-                        let data = JSON.parse(body);
-                        console.log('-----Refresh Token at ' + new Date() + ' ---------');
-                        return resolve(data);
-                    }
-                });
+            request({
+                url: 'https://accounts.livechatinc.com/token',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    grant_type: "refresh_token",
+                    refresh_token: configData.refresh_token,
+                    client_id: LIVECHAT_CLIENT_ID,
+                    client_secret: LIVECHAT_CLIENT_SECRET
+                })
+            }, function (error, response, body) {
+                if (!error && response.statusCode === 200) {
+                    fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
+                    let data = JSON.parse(body);
+                    console.log('-----Refresh Token at ' + new Date() + ' ---------');
+                    return resolve(data);
+                }
+            });
         } catch (e) {
             console.log('Live Chat is not authorized');
         }
     })
 }
+
 /* *************END LIVE CHAT******************* */
 module.exports = app;
