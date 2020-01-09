@@ -127,25 +127,6 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         socket.on('updateAssignedStatus', function (recipientID, data) {
             io.emit('updateAssignedStatus', recipientID, data);
         })
-
-        //Live Chat
-        refreshLiveChatToken().then(function (data) {
-            const chatSDK = new ChatSDK({ debug: true });
-            chatSDK.init({
-                access_token: data.access_token
-            });
-            chatSDK.on('incoming_chat_thread', (data) => {
-                console.log('----start chat---');
-                console.log(data.payload.chat);
-                console.log('----end start chat---');
-            });
-
-            chatSDK.on('connect', (data) => {
-                console.log('connect event');
-                console.log(data);
-            })
-        });
-
     });
 
     /**
@@ -326,6 +307,30 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             }
         });
     })
+
+    refreshLiveChatToken().then(function (data) {
+        const chatSDK = new ChatSDK({ debug: true });
+        chatSDK.init({
+            access_token: data.access_token
+        });
+        chatSDK.on('incoming_chat_thread', (data) => {
+            console.log('----start chat---');
+            console.log(data.payload.chat);
+            console.log('----end start chat---');
+        });
+
+        chatSDK.on('agent_disconnected', function() {
+            refreshLiveChatToken().then(function (data) {
+                let requestBody = {
+                    action: 'login',
+                    payload: {
+                        token: "Bearer " + data.access_token
+                    }
+                };
+                return chatSDK.methodFactory(requestBody);
+            })
+        })
+    });
 });
 
 /*
