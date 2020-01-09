@@ -73,6 +73,9 @@ var recipientSchema = mongoose.Schema({
 var Message = mongoose.model('messages', messageSchema);
 var Recipient = mongoose.model('recipients', recipientSchema);
 
+//Live chat
+const chatSDK = new ChatSDK({ debug: true });
+
 /*
 //secret: f6b3d6e6f93d3b2200ad11b3d13db1e9
  https://accounts.livechatinc.com/
@@ -243,45 +246,6 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
      * Live Chat Webhook
      */
 
-    /*app.post('/live-chat-start', function (req, res) {
-        let data = req.body;
-        try {
-            let configData = JSON.parse(fs.readFileSync('incoming_chat_thread.json'));
-            if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
-                console.log('--start chat--');
-                console.log(data.payload.chat);
-            }
-        } catch (e) {
-            // keep silent
-        }
-    });*/
-
-    /*app.post('/live-chat-close', function (req, res) {
-        let data = req.body;
-        try {
-            let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
-            if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
-                console.log('--close chat--');
-            }
-        } catch (e) {
-            // keep silent
-        }
-    });*/
-
-    /*app.post('/live-chat-incoming-event', function (req, res) {
-        let data = req.body;
-        try {
-            let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
-            if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
-                if (data.payload.event.type === 'message') {
-                    markSeenLiveChat(data.payload.chat_id, data.payload.event.created_at);
-                }
-            }
-        } catch (e) {
-            // keep silent
-        }
-    });*/
-
     app.get('/live-chat-verify', function (req, res) {
         const code = req.query.code;
         request({
@@ -300,36 +264,38 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }, function (error, response, body) {
             if (!error && response.statusCode === 200) {
                 fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
-                //registerLiveChatWebHook(JSON.parse(body));
+                refreshLiveChatToken().then((data) => {
+                    chatSDK.init({
+                        access_token: data.access_token
+                    });
+                })
                 res.sendStatus(200);
             } else {
                 res.sendStatus(500);
             }
         });
-    })
+    });
 
-    refreshLiveChatToken().then(function (data) {
-        const chatSDK = new ChatSDK({ debug: true });
+    chatSDK.on('incoming_chat_thread', (data) => {
+        console.log('----start chat---');
+        console.log(data.payload.chat);
+        console.log('----end start chat---');
+    });
+
+    chatSDK.on('agent_disconnected', function() {
+        refreshLiveChatToken().then((data) => {
+            chatSDK.init({
+                access_token: data.access_token
+            });
+        })
+    });
+
+    // for restart app
+    refreshLiveChatToken().then((data) => {
         chatSDK.init({
             access_token: data.access_token
         });
-        chatSDK.on('incoming_chat_thread', (data) => {
-            console.log('----start chat---');
-            console.log(data.payload.chat);
-            console.log('----end start chat---');
-        });
 
-        chatSDK.on('agent_disconnected', function() {
-            refreshLiveChatToken().then(function (data) {
-                let requestBody = {
-                    action: 'login',
-                    payload: {
-                        token: "Bearer " + data.access_token
-                    }
-                };
-                return chatSDK.methodFactory(requestBody);
-            })
-        })
     });
 });
 
@@ -1001,7 +967,7 @@ async function refreshLiveChatToken() {
                         grant_type: "refresh_token",
                         refresh_token: configData.refresh_token,
                         client_id: LIVECHAT_CLIENT_ID,
-                        client_secret: LIVECHAT_CLIENT_SECRET,
+                        client_secret: LIVECHAT_CLIENT_SECRET
                     })
                 }, function (error, response, body) {
                     if (!error && response.statusCode === 200) {
