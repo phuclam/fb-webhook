@@ -956,7 +956,6 @@ function registerLiveChatWebHook(configData) {
             'Authorization': configData.token_type + ' ' + configData.access_token
         },
         body: JSON.stringify({
-            agent_id: SERVER_URL + '/live-chat-close',
             routing_status: 'accepting_chats',
         })
     }, function (err, res, body) {
