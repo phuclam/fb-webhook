@@ -973,6 +973,7 @@ async function refreshLiveChatToken() {
                     if (!error && response.statusCode === 200) {
                         fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
                         let data = JSON.parse(body);
+                        console.log('-----Refresh Token at ' + new Date() + ' ---------');
                         return resolve(data);
                     }
                 });
