@@ -134,16 +134,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             chatSDK.init({
                 access_token: data.access_token
             });
-            chatSDK.getAgentDetails()
-                .then(agentData => {
-                    console.log(agentData);
-                })
-                .catch(error => {
-                    // catch an error object
-                });
             chatSDK.on('incoming_chat_thread', (data) => {
                 console.log('----start chat---');
-                console.log(data);
+                console.log(data.payload.chat);
                 console.log('----end start chat---');
             })
         });
