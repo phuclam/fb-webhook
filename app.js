@@ -278,8 +278,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     });
 
     chatSDK.on('incoming_chat_thread', (data) => {
-        if (data.users[0].email) {
-            let recipient = data.users[0];
+        if (data.payload.chat.users[0]) {
+            let recipient = data.payload.chat.users[0];
             Recipient.findOneAndUpdate(
                 {recipient_id: recipient.email.toLowerCase()},
                 {
