@@ -289,7 +289,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             let configData = JSON.parse(fs.readFileSync('incoming_chat_thread.json'));
             if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
                 console.log('--start chat--');
-                console.log(data);
+                console.log(data.payload.chat);
             }
         } catch (e) {
             // keep silent
