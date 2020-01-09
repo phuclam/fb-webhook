@@ -314,7 +314,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
             if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
                 if (data.payload.event.type === 'message') {
-                    markSeenLiveChat(data.payload.chat_id);
+                    markSeenLiveChat(data.payload.chat_id, data.payload.event.created_at);
                 }
             }
         } catch (e) {
@@ -978,7 +978,7 @@ function registerLiveChatWebHook(configData) {
     });
 }
 
-function markSeenLiveChat(chatId) {
+function markSeenLiveChat(chatId, time) {
     let configData = JSON.parse(fs.readFileSync(LIVECHAT_CONFIG_FILE));
     request({
         url: 'https://api.livechatinc.com/v3.1/agent/action/mark_events_as_seen',
@@ -989,7 +989,7 @@ function markSeenLiveChat(chatId) {
         },
         body: JSON.stringify({
             chat_id: chatId,
-            seen_up_to: new Date()
+            seen_up_to: time
         })
     }, function (err, res, body)  {
         if (!err && res.statusCode === 200) {
