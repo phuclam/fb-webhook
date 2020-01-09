@@ -299,7 +299,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     app.post('/live-chat-close', function (req, res) {
         let data = req.body;
         try {
-            let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
+            let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
             if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
                 console.log('--close chat--');
             }
@@ -311,12 +311,10 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     app.post('/live-chat-incoming-event', function (req, res) {
         let data = req.body;
         try {
-            let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
-            console.log('--------incoming------');
-            console.log(data);
-            console.log('--------end incoming------');
+            let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
             if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
                 console.log('--incoming event--');
+                console.log(data);
             }
         } catch (e) {
             // keep silent
