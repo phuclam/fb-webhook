@@ -138,6 +138,11 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 console.log('----start chat---');
                 console.log(data.payload.chat);
                 console.log('----end start chat---');
+            });
+
+            chatSDK.on('connect', (data) => {
+                console.log('connect event');
+                console.log(data);
             })
         });
 
