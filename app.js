@@ -988,7 +988,7 @@ function markSeenLiveChat(chatId) {
             'Authorization': configData.token_type + ' ' + configData.access_token
         },
         body: JSON.stringify({
-            chat_id: 'Support',
+            chat_id: chatId,
             seen_up_to: new Date()
         })
     }, function (err, res, body)  {
