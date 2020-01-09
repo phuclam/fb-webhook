@@ -133,14 +133,12 @@ function refreshLiveChatToken() {
  ?response_type=code
  &client_id=37f247f1a7431256bda730b0264f049c
  &redirect_uri=http://localhost:5000/live-chat-verify
- &state=f3NtEuZ5AuxsmnVAzcyLGm17aAaltJTv
 
 
  https://accounts.livechatinc.com/
  ?response_type=code
  &client_id=37f247f1a7431256bda730b0264f049c
  &redirect_uri=https://kycdev.bittenet.com/live-chat-verify
- &state=f3NtEuZ5AuxsmnVAzcyLGm17aAaltJTv
 
 */
 
@@ -300,18 +298,30 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
      */
 
     app.post('/live-chat-start', function (req, res) {
+        let data = JSON.parse(req.body);
+        if (data.secret_key !== VALIDATION_KEY) {
+            res.sendStatus(403);
+        }
         console.log('--start chat--');
-        console.log(req.body);
+        console.log(data);
     });
 
     app.post('/live-chat-close', function (req, res) {
+        let data = JSON.parse(req.body);
+        if (data.secret_key !== VALIDATION_KEY) {
+            res.sendStatus(403);
+        }
         console.log('--close chat--');
-        console.log(req.body);
+        console.log(data);
     });
 
     app.post('/live-chat-incoming-event', function (req, res) {
+        let data = JSON.parse(req.body);
+        if (data.secret_key !== VALIDATION_KEY) {
+            res.sendStatus(403);
+        }
         console.log('--incoming event--');
-        console.log(req.body);
+        console.log(data);
     });
 
     app.get('/live-chat-verify', function (req, res) {
@@ -964,6 +974,7 @@ function registerLiveChatWebHook(configData) {
             console.log(body);
         } else {
             console.log('Wakeup agent error !')
+            console.log(err);
         }
     });
 
