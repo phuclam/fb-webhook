@@ -15,6 +15,7 @@ const bodyParser = require('body-parser'),
 // Origin
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN;
 const SERVER_URL = process.env.SERVER_URL;
+const VALIDATION_KEY = 'arzqvfom4121xv9vidfp';
 
 // Facebook
 const APP_SECRET = process.env.FB_APP_SECRET;
@@ -86,73 +87,6 @@ chatSDK.on('incoming_chat_thread', (data) => {
 });*/
 
 
-app.get('/live-chat-verify', function (req, res) {
-    const code = req.query.code;
-    request({
-        url: 'https://accounts.livechatinc.com/token',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            grant_type: "authorization_code",
-            code: code,
-            client_id: LIVECHAT_CLIENT_ID,
-            client_secret: LIVECHAT_CLIENT_SECRET,
-            redirect_uri: SERVER_URL + '/live-chat-verify'
-        })
-    }, function (error, response, body) {
-        if (!error && response.statusCode === 200) {
-            fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
-            registerLiveChatWebHook(JSON.parse(body));
-            res.sendStatus(200);
-        } else {
-            res.sendStatus(500);
-        }
-    });
-});
-
-function registerLiveChatWebHook(configData) {
-    //incoming_chat_thread
-    request({
-        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': configData.token_type + ' ' + configData.access_token
-        },
-        body: JSON.stringify({
-            url: SERVER_URL + '/live-chat-start',
-            description: 'Start Thread',
-            action: 'incoming_chat_thread',
-            secret_key: 'sad'
-        })
-    }, function (error, response, body) {
-        console.log('----start register');
-        console.log(body);
-        console.log('----end register');
-    });
-    //incoming_event
-    //thread_closed
-    /*request({
-        url: 'https://accounts.livechatinc.com/token',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            grant_type: "refresh_token",
-            refresh_token: configData.refresh_token,
-            client_id: LIVECHAT_CLIENT_ID,
-            client_secret: LIVECHAT_CLIENT_SECRET,
-        })
-    }, function (error, response, body) {
-
-    });*/
-
-
-}
-
 function refreshLiveChatToken() {
     let config = fs.readFileSync(LIVECHAT_CONFIG_FILE);
     let configData = JSON.parse(config);
@@ -201,6 +135,12 @@ function refreshLiveChatToken() {
  &redirect_uri=http://localhost:5000/live-chat-verify
  &state=f3NtEuZ5AuxsmnVAzcyLGm17aAaltJTv
 
+
+ https://accounts.livechatinc.com/
+ ?response_type=code
+ &client_id=37f247f1a7431256bda730b0264f049c
+ &redirect_uri=https://kycdev.bittenet.com/live-chat-verify
+ &state=f3NtEuZ5AuxsmnVAzcyLGm17aAaltJTv
 
 */
 
@@ -359,20 +299,45 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
      * Live Chat Webhook
      */
 
-    app.get('/live-chat-start', function (req, res) {
-        console.log('--get--');
-        console.log(req.body);
-        res.sendStatus(200);
-    });
     app.post('/live-chat-start', function (req, res) {
-        console.log('--post--');
+        console.log('--start chat--');
         console.log(req.body);
-        res.sendStatus(200);
+    });
+
+    app.post('/live-chat-close', function (req, res) {
+        console.log('--close chat--');
+        console.log(req.body);
+    });
+
+    app.post('/live-chat-incoming-event', function (req, res) {
+        console.log('--incoming event--');
+        console.log(req.body);
     });
 
     app.get('/live-chat-verify', function (req, res) {
-        console.log(req);
-        res.sendStatus(200);
+        const code = req.query.code;
+        request({
+            url: 'https://accounts.livechatinc.com/token',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                grant_type: "authorization_code",
+                code: code,
+                client_id: LIVECHAT_CLIENT_ID,
+                client_secret: LIVECHAT_CLIENT_SECRET,
+                redirect_uri: SERVER_URL + '/live-chat-verify'
+            })
+        }, function (error, response, body) {
+            if (!error && response.statusCode === 200) {
+                fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
+                registerLiveChatWebHook(JSON.parse(body));
+                res.sendStatus(200);
+            } else {
+                res.sendStatus(500);
+            }
+        });
     })
 });
 
@@ -488,7 +453,7 @@ function verifyRequestSignature(req, res, buf) {
     //verify CRM
     else if (req.headers["x-crm-signature"]) {
         let signature = req.headers["x-crm-signature"];
-        let expectedHash = crypto.createHmac('SHA256', 'arzqvfom4121xv9vidfp').update(buf).digest('base64');
+        let expectedHash = crypto.createHmac('SHA256', VALIDATION_KEY).update(buf).digest('base64');
 
         if (signature === expectedHash) {
             res.signature_matched = true;
@@ -912,4 +877,97 @@ function sendLineImage(recipientID, url, previewUrl) {
 }
 
 /* ***************END LINE EVENT**************** */
+
+
+/* ***************LIVE CHAT********************* */
+function registerLiveChatWebHook(configData) {
+    //incoming_chat_thread
+    request({
+        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': configData.token_type + ' ' + configData.access_token
+        },
+        body: JSON.stringify({
+            url: SERVER_URL + '/live-chat-start',
+            description: 'Thread Start',
+            action: 'incoming_chat_thread',
+            secret_key: VALIDATION_KEY
+        })
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            console.log('Register incoming_chat_thread successful !');
+            console.log(body);
+        } else {
+            console.log('Register incoming_chat_thread error !')
+        }
+    });
+    //incoming_event
+    request({
+        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': configData.token_type + ' ' + configData.access_token
+        },
+        body: JSON.stringify({
+            url: SERVER_URL + '/live-chat-incoming-event',
+            description: 'Incomming event',
+            action: 'incoming_event',
+            secret_key: VALIDATION_KEY
+        })
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            console.log('Register incoming_event successful !');
+            console.log(body);
+        } else {
+            console.log('Register incoming_event error !')
+        }
+    });
+    //thread_closed
+    request({
+        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': configData.token_type + ' ' + configData.access_token
+        },
+        body: JSON.stringify({
+            url: SERVER_URL + '/live-chat-close',
+            description: 'Thread End',
+            action: 'thread_closed',
+            secret_key: VALIDATION_KEY
+        })
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            console.log('Register thread_closed successful !');
+            console.log(body);
+        } else {
+            console.log('Register thread_closed error !')
+        }
+    });
+    //Wakeup Agent
+    request({
+        url: 'https://api.livechatinc.com/v3.1/agent/action/update_agent',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': configData.token_type + ' ' + configData.access_token
+        },
+        body: JSON.stringify({
+            agent_id: SERVER_URL + '/live-chat-close',
+            routing_status: 'accepting_chats',
+        })
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            console.log('Wakeup agent successful !');
+            console.log(body);
+        } else {
+            console.log('Wakeup agent error !')
+        }
+    });
+
+}
+/* *************END LIVE CHAT******************* */
 module.exports = app;
