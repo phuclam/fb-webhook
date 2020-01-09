@@ -9,8 +9,7 @@ const bodyParser = require('body-parser'),
     fs = require('fs'),
     uuid = require('uuid/v4'),
     mongoose = require('mongoose'),
-    mongoosePaginate = require('mongoose-paginate'),
-    ChatSDK = require('@livechat/chat-sdk');
+    mongoosePaginate = require('mongoose-paginate');
 
 // Origin
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN;
@@ -72,19 +71,6 @@ var recipientSchema = mongoose.Schema({
 
 var Message = mongoose.model('messages', messageSchema);
 var Recipient = mongoose.model('recipients', recipientSchema);
-
-//LiveChat SDK
-
-/*const chatSDK = new ChatSDK({ debug: true });
-chatSDK.init({
-    access_token: 'dal:P-q5ns1CROOEyCGe_IXMFg'
-});
-
-chatSDK.on('incoming_chat_thread', (data) => {
-    console.log('-----------------------');
-    console.log(data);
-    console.log('-----------------------')
-});*/
 
 
 function refreshLiveChatToken() {
@@ -299,29 +285,29 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
 
     app.post('/live-chat-start', function (req, res) {
         let data = req.body;
-        if (data.secret_key !== VALIDATION_KEY) {
-            res.sendStatus(403);
+        let configData = JSON.parse(fs.readFileSync('incoming_chat_thread.json'));
+        if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
+            console.log('--start chat--');
+            console.log(data);
         }
-        console.log('--start chat--');
-        console.log(data);
     });
 
     app.post('/live-chat-close', function (req, res) {
         let data = req.body;
-        if (data.secret_key !== VALIDATION_KEY) {
-            res.sendStatus(403);
+        let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
+        if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
+            console.log('--close chat--');
+            console.log(data);
         }
-        console.log('--close chat--');
-        console.log(data);
     });
 
     app.post('/live-chat-incoming-event', function (req, res) {
         let data = req.body;
-        if (data.secret_key !== VALIDATION_KEY) {
-            res.sendStatus(403);
+        let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
+        if (data.secret_key === VALIDATION_KEY && configData.webhook_id === data.webhook_id) {
+            console.log('--incoming event--');
+            console.log(data);
         }
-        console.log('--incoming event--');
-        console.log(data);
     });
 
     app.get('/live-chat-verify', function (req, res) {
@@ -909,6 +895,7 @@ function registerLiveChatWebHook(configData) {
         if (!err && res.statusCode === 200) {
             console.log('Register incoming_chat_thread successful !');
             console.log(body);
+            fs.writeFileSync('incoming_chat_thread.json', body);
         } else {
             console.log('Register incoming_chat_thread error !')
         }
@@ -931,6 +918,7 @@ function registerLiveChatWebHook(configData) {
         if (!err && res.statusCode === 200) {
             console.log('Register incoming_event successful !');
             console.log(body);
+            fs.writeFileSync('incoming_event.json', body);
         } else {
             console.log('Register incoming_event error !')
         }
@@ -953,28 +941,27 @@ function registerLiveChatWebHook(configData) {
         if (!err && res.statusCode === 200) {
             console.log('Register thread_closed successful !');
             console.log(body);
+            fs.writeFileSync('thread_closed.json', body);
         } else {
             console.log('Register thread_closed error !')
         }
     });
-    //Wakeup Agent
+    //Create chat bot
     request({
-        url: 'https://api.livechatinc.com/v3.1/agent/action/update_agent',
+        url: 'https://api.livechatinc.com/v3.1/configuration/action/create_bot_agent',
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': configData.token_type + ' ' + configData.access_token
         },
         body: JSON.stringify({
-            routing_status: 'accepting_chats',
+            name: 'Supporter',
+            status: 'accepting_chats',
         })
-    }, function (err, res, body) {
+    }, function (err, res, body)  {
         if (!err && res.statusCode === 200) {
-            console.log('Wakeup agent successful !');
+            console.log('A chat bot has bean created !');
             console.log(body);
-        } else {
-            console.log('Wakeup agent error !')
-            console.log(err);
         }
     });
 
