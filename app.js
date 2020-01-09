@@ -9,7 +9,8 @@ const bodyParser = require('body-parser'),
     fs = require('fs'),
     uuid = require('uuid/v4'),
     mongoose = require('mongoose'),
-    mongoosePaginate = require('mongoose-paginate');
+    mongoosePaginate = require('mongoose-paginate'),
+    ChatSDK = require('@livechat/chat-sdk');
 
 // Origin
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN;
@@ -72,47 +73,6 @@ var recipientSchema = mongoose.Schema({
 var Message = mongoose.model('messages', messageSchema);
 var Recipient = mongoose.model('recipients', recipientSchema);
 
-
-function refreshLiveChatToken() {
-    let config = fs.readFileSync(LIVECHAT_CONFIG_FILE);
-    let configData = JSON.parse(config);
-    request({
-            url: 'https://accounts.livechatinc.com/info',
-            method: 'GET',
-            headers: {
-                'Authorization': configData.token_type + ' ' + configData.access_token
-            },
-        }, function (err, res, body) {
-            if (res.statusCode !== 200) {
-                request({
-                    url: 'https://accounts.livechatinc.com/token',
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        grant_type: "refresh_token",
-                        refresh_token: configData.refresh_token,
-                        client_id: LIVECHAT_CLIENT_ID,
-                        client_secret: LIVECHAT_CLIENT_SECRET,
-                    })
-                }, function (error, response, body) {
-                    if (!error && response.statusCode === 200) {
-                        let data = JSON.parse(body);
-                        chatSDK.init({
-                            access_token: 'dal:p2BMxbpeQdSUu7XN44lBlw'
-                        });
-                        ChatSDK.init({
-                            access_token: data.access_token
-                        });
-                        fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
-                    }
-                });
-            }
-        })
-
-}
-
 /*
 //secret: f6b3d6e6f93d3b2200ad11b3d13db1e9
  https://accounts.livechatinc.com/
@@ -167,6 +127,27 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         socket.on('updateAssignedStatus', function (recipientID, data) {
             io.emit('updateAssignedStatus', recipientID, data);
         })
+
+        //Live Chat
+        refreshLiveChatToken().then(function (data) {
+            const chatSDK = new ChatSDK({ debug: true });
+            chatSDK.init({
+                access_token: data.access_token
+            });
+            chatSDK.getAgentDetails()
+                .then(agentData => {
+                    console.log(agentData);
+                })
+                .catch(error => {
+                    // catch an error object
+                });
+            chatSDK.on('incoming_chat_thread', (data) => {
+                console.log('----start chat---');
+                console.log(data);
+                console.log('----end start chat---');
+            })
+        });
+
     });
 
     /**
@@ -283,7 +264,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
      * Live Chat Webhook
      */
 
-    app.post('/live-chat-start', function (req, res) {
+    /*app.post('/live-chat-start', function (req, res) {
         let data = req.body;
         try {
             let configData = JSON.parse(fs.readFileSync('incoming_chat_thread.json'));
@@ -294,9 +275,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         } catch (e) {
             // keep silent
         }
-    });
+    });*/
 
-    app.post('/live-chat-close', function (req, res) {
+    /*app.post('/live-chat-close', function (req, res) {
         let data = req.body;
         try {
             let configData = JSON.parse(fs.readFileSync('thread_closed.json'));
@@ -306,9 +287,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         } catch (e) {
             // keep silent
         }
-    });
+    });*/
 
-    app.post('/live-chat-incoming-event', function (req, res) {
+    /*app.post('/live-chat-incoming-event', function (req, res) {
         let data = req.body;
         try {
             let configData = JSON.parse(fs.readFileSync('incoming_event.json'));
@@ -320,7 +301,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         } catch (e) {
             // keep silent
         }
-    });
+    });*/
 
     app.get('/live-chat-verify', function (req, res) {
         const code = req.query.code;
@@ -340,7 +321,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }, function (error, response, body) {
             if (!error && response.statusCode === 200) {
                 fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
-                registerLiveChatWebHook(JSON.parse(body));
+                //registerLiveChatWebHook(JSON.parse(body));
                 res.sendStatus(200);
             } else {
                 res.sendStatus(500);
@@ -999,6 +980,37 @@ function markSeenLiveChat(chatId, time) {
             console.log(chatId + ' ---- ' + time);
         }
     });
+}
+
+async function refreshLiveChatToken() {
+    return new Promise((resolve) => {
+        try {
+            let config = fs.readFileSync(LIVECHAT_CONFIG_FILE);
+            let configData = JSON.parse(config);
+
+                request({
+                    url: 'https://accounts.livechatinc.com/token',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        grant_type: "refresh_token",
+                        refresh_token: configData.refresh_token,
+                        client_id: LIVECHAT_CLIENT_ID,
+                        client_secret: LIVECHAT_CLIENT_SECRET,
+                    })
+                }, function (error, response, body) {
+                    if (!error && response.statusCode === 200) {
+                        fs.writeFileSync(LIVECHAT_CONFIG_FILE, body);
+                        let data = JSON.parse(body);
+                        return resolve(data);
+                    }
+                });
+        } catch (e) {
+            console.log('Live Chat is not authorized');
+        }
+    })
 }
 /* *************END LIVE CHAT******************* */
 module.exports = app;
