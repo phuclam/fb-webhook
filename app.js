@@ -967,8 +967,8 @@ function registerLiveChatWebHook(configData) {
             'Authorization': configData.token_type + ' ' + configData.access_token
         },
         body: JSON.stringify({
-            name: 'Supporter',
-            status: 'accepting_chats',
+            name: 'Support',
+            status: 'accepting chats'
         })
     }, function (err, res, body)  {
         if (!err && res.statusCode === 200) {
