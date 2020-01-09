@@ -298,7 +298,6 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
      */
 
     app.post('/live-chat-start', function (req, res) {
-        console.log(typeof req.body);
         let data = req.body;
         if (data.secret_key !== VALIDATION_KEY) {
             res.sendStatus(403);
