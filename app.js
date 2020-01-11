@@ -376,6 +376,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     function (error, res) {
                         if (!error) {
                             if (res.live_customer_id === event.author_id) {
+
+
+
                                 if (event.thumbnail_url) {
                                     attachmentSave = {
                                         type: 'image',
@@ -420,7 +423,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                                             attachments: {
                                                 data: [attachmentSend]
                                             },
-                                            id: event.message.id,
+                                            id: event.id,
                                             created_time: data.created
                                         };
                                         io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
@@ -472,7 +475,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                                             attachments: {
                                                 data: [attachmentSend]
                                             },
-                                            id: event.message.id,
+                                            id: event.id,
                                             created_time: data.created
                                         };
                                         io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), true);
