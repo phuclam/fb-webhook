@@ -17,6 +17,8 @@ const bodyParser = require('body-parser'),
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN;
 const SERVER_URL = process.env.SERVER_URL;
 const VALIDATION_KEY = 'arzqvfom4121xv9vidfp';
+const ADMIN_NAME = 'Admin';
+const ADMIN_ID = 'owner';
 
 // Facebook
 const APP_SECRET = process.env.FB_APP_SECRET;
@@ -302,65 +304,184 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     chatSDK.on('incoming_event', (data) => {
         let event = data.payload.event;
         let chatId = data.payload.chat_id;
-        if (event.type === 'message') {
-            Recipient.findOneAndUpdate(
-                {live_chat_id: chatId},
-                {
-                    last_message: new Date(),
-                },
-                {upsert: true, new: true, setDefaultsOnInsert: true},
-                function (error, res) {
-                    if (!error) {
-                        if (res.live_customer_id === event.author_id) {
-                            let msg = new Message({
-                                sender_id: res.recipient_id,
-                                recipient_id: res.recipient_id,
-                                type: 'text',
-                                message_id: event.id,
-                                message_text: event.text
-                            });
-                            msg.save(function (err, data) {
-                                if (!err) {
-                                    let obj = {
-                                        from: {
-                                            name: res.recipient_name,
-                                            id: res.recipient_id,
-                                        },
-                                        message: data.message_text,
-                                        id: data.message_id,
-                                        created_time: data.created
-                                    };
-                                    io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
-                                }
-                            });
+        let attachmentSave, attachmentSend;
+        switch (event.type) {
+            case "message":
+                Recipient.findOneAndUpdate(
+                    {live_chat_id: chatId},
+                    {
+                        last_message: new Date(),
+                    },
+                    {upsert: true, new: true, setDefaultsOnInsert: true},
+                    function (error, res) {
+                        if (!error) {
+                            if (res.live_customer_id === event.author_id) {
+                                let msg = new Message({
+                                    sender_id: res.recipient_id,
+                                    recipient_id: res.recipient_id,
+                                    type: 'text',
+                                    message_id: event.id,
+                                    message_text: event.text
+                                });
+                                msg.save(function (err, data) {
+                                    if (!err) {
+                                        let obj = {
+                                            from: {
+                                                name: res.recipient_name,
+                                                id: res.recipient_id,
+                                            },
+                                            message: data.message_text,
+                                            id: data.message_id,
+                                            created_time: data.created
+                                        };
+                                        io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
+                                    }
+                                });
+                            } else {
+                                let msg = new Message({
+                                    sender_id: ADMIN_ID,
+                                    recipient_id: res.recipient_id,
+                                    type: 'text',
+                                    message_text: event.text
+                                });
+                                msg.save(function (err, data) {
+                                    if (!err) {
+                                        let obj = {
+                                            from: {
+                                                name: ADMIN_NAME,
+                                                id: ADMIN_ID,
+                                            },
+                                            message: data.message_text,
+                                            id: data.message_id,
+                                            created_time: data.created
+                                        };
+                                        io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), true);
+                                    }
+                                });
+                            }
                         } else {
-                            let msg = new Message({
-                                sender_id: 'owner',
-                                recipient_id: res.recipient_id,
-                                type: 'text',
-                                message_text: event.text
-                            });
-                            msg.save(function (err, data) {
-                                if (!err) {
-                                    let obj = {
-                                        from: {
-                                            name: 'Admin',
-                                            id: 'owner',
-                                        },
-                                        message: data.message_text,
-                                        id: data.message_id,
-                                        created_time: data.created
-                                    };
-                                    io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), true);
-                                }
-                            });
+                            console.log('------error recipient------');
+                            console.log(error);
+                            console.log('------end error recipient------');
                         }
-                    } else {
-                        console.log('------error recipient------');
-                        console.log(error);
-                        console.log('------end error recipient------');
-                    }
-                });
+                    });
+                break;
+            case 'file' :
+                Recipient.findOneAndUpdate(
+                    {live_chat_id: chatId},
+                    {
+                        last_message: new Date(),
+                    },
+                    {upsert: true, new: true, setDefaultsOnInsert: true},
+                    function (error, res) {
+                        if (!error) {
+                            if (res.live_customer_id === event.author_id) {
+                                if (event.thumbnail_url) {
+                                    attachmentSave = {
+                                        type: 'image',
+                                        name: event.name,
+                                        url: event.url,
+                                        preview_url: event.thumbnail_url
+                                    };
+
+                                    attachmentSend = {
+                                        image_data: {
+                                            url: event.url,
+                                            preview_url: event.thumbnail_url,
+                                        }
+                                    }
+                                } else {
+                                    attachmentSave = {
+                                        type: 'file',
+                                        name: event.name,
+                                        url: event.url
+                                    };
+
+                                    attachmentSend = {
+                                        file_url: event.url,
+                                        name: event.name
+                                    }
+                                }
+                                let msg = new Message({
+                                    sender_id: res.recipient_id,
+                                    recipient_id: res.recipient_id,
+                                    type: 'attachment',
+                                    message_id: event.id,
+                                    attachments: [attachmentSave]
+                                });
+
+                                msg.save(function (err, data) {
+                                    if (!err) {
+                                        let obj = {
+                                            from: {
+                                                name: res.recipient_name,
+                                                id: res.recipient_id,
+                                            },
+                                            attachments: {
+                                                data: [attachmentSend]
+                                            },
+                                            id: event.message.id,
+                                            created_time: data.created
+                                        };
+                                        io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
+                                    }
+                                });
+                            } else {
+                                if (event.thumbnail_url) {
+                                    attachmentSave = {
+                                        type: 'image',
+                                        name: event.name,
+                                        url: event.url,
+                                        preview_url: event.thumbnail_url
+                                    };
+
+                                    attachmentSend = {
+                                        image_data: {
+                                            url: event.url,
+                                            preview_url: event.thumbnail_url,
+                                        }
+                                    }
+                                } else {
+                                    attachmentSave = {
+                                        type: 'file',
+                                        name: event.name,
+                                        url: event.url
+                                    };
+
+                                    attachmentSend = {
+                                        file_url: event.url,
+                                        name: event.name
+                                    }
+                                }
+
+                                let msg = new Message({
+                                    sender_id: ADMIN_ID,
+                                    recipient_id: res.recipient_id,
+                                    type: 'attachment',
+                                    message_id: event.id,
+                                    attachments: [attachmentSave]
+                                });
+
+                                msg.save(function (err, data) {
+                                    if (!err) {
+                                        let obj = {
+                                            from: {
+                                                name: ADMIN_NAME,
+                                                id: ADMIN_ID,
+                                            },
+                                            attachments: {
+                                                data: [attachmentSend]
+                                            },
+                                            id: event.message.id,
+                                            created_time: data.created
+                                        };
+                                        io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), true);
+                                    }
+                                });
+                            }
+                        }
+                    });
+                break;
         }
     });
 
@@ -577,7 +698,7 @@ function retrieveMessageInfo(id, recipientId, owner) {
                                 let msg;
                                 if (data.sticker) {
                                     msg = new Message({
-                                        sender_id: owner ? 'owner' : recipientId,
+                                        sender_id: owner ? ADMIN_ID : recipientId,
                                         recipient_id: recipientId,
                                         type: 'sticker',
                                         message_id: data.id,
@@ -598,7 +719,7 @@ function retrieveMessageInfo(id, recipientId, owner) {
                                         }
                                     });
                                     msg = new Message({
-                                        sender_id: owner ? 'owner' : recipientId,
+                                        sender_id: owner ? ADMIN_ID : recipientId,
                                         recipient_id: recipientId,
                                         type: 'attachment',
                                         message_id: data.id,
@@ -607,7 +728,7 @@ function retrieveMessageInfo(id, recipientId, owner) {
                                     });
                                 } else {
                                     msg = new Message({
-                                        sender_id: owner ? 'owner' : recipientId,
+                                        sender_id: owner ? ADMIN_ID : recipientId,
                                         recipient_id: recipientId,
                                         type: 'text',
                                         message_id: data.id,
@@ -844,7 +965,7 @@ function sendLineTextMessage(recipientId, messageText) {
         })
     }, function (err, res, body) {
         let msg = new Message({
-            sender_id: 'owner',
+            sender_id: ADMIN_ID,
             recipient_id: recipientId,
             type: 'text',
             message_text: messageText
@@ -853,8 +974,8 @@ function sendLineTextMessage(recipientId, messageText) {
             if (!err) {
                 let obj = {
                     from: {
-                        name: 'Admin',
-                        id: 'owner',
+                        name: ADMIN_NAME,
+                        id: ADMIN_ID,
                     },
                     message: data.message_text,
                     id: data.message_id,
@@ -880,7 +1001,7 @@ function sendLineImage(recipientId, url, previewUrl) {
         })
     }, function (err, res, body) {
         let msg = new Message({
-            sender_id: 'owner',
+            sender_id: ADMIN_ID,
             recipient_id: recipientId,
             type: 'attachment',
             attachments: [
@@ -896,8 +1017,8 @@ function sendLineImage(recipientId, url, previewUrl) {
             if (!err) {
                 let obj = {
                     from: {
-                        name: 'Admin',
-                        id: 'owner',
+                        name: ADMIN_NAME,
+                        id: ADMIN_ID,
                     },
                     attachments: {
                         data: [
