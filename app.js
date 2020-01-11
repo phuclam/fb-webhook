@@ -68,7 +68,8 @@ var recipientSchema = mongoose.Schema({
     recipient_id: {type: String, unique: true},
     recipient_name: String,
     type: String,
-    live_chat_id: String,
+    live_chat_id: {type: String, unique: true},
+    live_customer_id: String,
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
 
@@ -288,6 +289,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     recipient_name: recipient.name,
                     type: 'LiveChat',
                     live_chat_id: data.payload.chat.id,
+                    live_customer_id: recipient.id,
                     last_message: new Date()
                 },
                 {upsert: true, new: true, setDefaultsOnInsert: true},
@@ -309,27 +311,50 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 {upsert: true, new: true, setDefaultsOnInsert: true},
                 function (error, res) {
                     if (!error) {
-                        let msg = new Message({
-                            sender_id: res.recipient_id,
-                            recipient_id: res.recipient_id,
-                            type: 'text',
-                            message_id: event.id,
-                            message_text: event.text
-                        });
-                        msg.save(function (err, data) {
-                            if (!err) {
-                                let obj = {
-                                    from: {
-                                        name: res.recipient_name,
-                                        id: res.recipient_id,
-                                    },
-                                    message: data.message_text,
-                                    id: data.message_id,
-                                    created_time: data.created
-                                };
-                                io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
-                            }
-                        });
+                        if (res.live_customer_id === event.author_id) {
+                            let msg = new Message({
+                                sender_id: res.recipient_id,
+                                recipient_id: res.recipient_id,
+                                type: 'text',
+                                message_id: event.id,
+                                message_text: event.text
+                            });
+                            msg.save(function (err, data) {
+                                if (!err) {
+                                    let obj = {
+                                        from: {
+                                            name: res.recipient_name,
+                                            id: res.recipient_id,
+                                        },
+                                        message: data.message_text,
+                                        id: data.message_id,
+                                        created_time: data.created
+                                    };
+                                    io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), false);
+                                }
+                            });
+                        } else {
+                            let msg = new Message({
+                                sender_id: 'owner',
+                                recipient_id: res.recipient_id,
+                                type: 'text',
+                                message_text: event.text
+                            });
+                            msg.save(function (err, data) {
+                                if (!err) {
+                                    let obj = {
+                                        from: {
+                                            name: 'Admin',
+                                            id: 'owner',
+                                        },
+                                        message: data.message_text,
+                                        id: data.message_id,
+                                        created_time: data.created
+                                    };
+                                    io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), true);
+                                }
+                            });
+                        }
                     } else {
                         console.log('------error recipient------');
                         console.log(error);
@@ -1045,28 +1070,8 @@ async function refreshLiveChatToken() {
 async function sendLiveChatTextMessage(recipientId, messageText) {
     const recipient = await Recipient.findOne({recipient_id: recipientId});
     if (recipient) {
-        console.log(recipient);
         chatSDK.sendMessage(recipient.live_chat_id, messageText).then(function() {
-            let msg = new Message({
-                sender_id: 'owner',
-                recipient_id: recipientId,
-                type: 'text',
-                message_text: messageText
-            });
-            msg.save(function (err, data) {
-                if (!err) {
-                    let obj = {
-                        from: {
-                            name: 'Admin',
-                            id: 'owner',
-                        },
-                        message: data.message_text,
-                        id: data.message_id,
-                        created_time: data.created
-                    };
-                    io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
-                }
-            });
+            //do nothing
         });
     }
 
