@@ -68,7 +68,7 @@ var recipientSchema = mongoose.Schema({
     recipient_id: {type: String, unique: true},
     recipient_name: String,
     type: String,
-    live_user_id: String,
+    live_chat_id: String,
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
 
@@ -108,29 +108,30 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         console.log('A new Client has just been connected');
         socket.on('disconnect', () => console.log('Client disconnected'));
         //Send message
-        socket.on('sendMessage', function (type, recipientID, messageText) {
+        socket.on('sendMessage', function (type, recipientId, messageText) {
             if (type === 'Facebook') {
-                sendTextMessage(recipientID, messageText);
+                sendTextMessage(recipientId, messageText);
             } else if (type === 'Line') {
-                sendLineTextMessage(recipientID, messageText);
+                sendLineTextMessage(recipientId, messageText);
+            } else if (type === 'LiveChat') {
+                sendLiveChatTextMessage(recipientId, messageText);
             }
-
         });
         //Send attachment from url
-        socket.on('sendAttachment', function (type, recipientID, fileType, url, previewUrl) {
+        socket.on('sendAttachment', function (type, recipientId, fileType, url, previewUrl) {
             if (type === 'Line') {
-                sendLineImage(recipientID, url, previewUrl);
+                sendLineImage(recipientId, url, previewUrl);
             } else if (type === 'Facebook') {
-                sendAttachment(recipientID, url, fileType);
+                sendAttachment(recipientId, url, fileType);
             }
         });
         //Mark as seen
-        socket.on('seen', function (recipientID) {
-            sendMarkSeen(recipientID);
+        socket.on('seen', function (recipientId) {
+            sendMarkSeen(recipientId);
         });
         //Update Status / Assigned to
-        socket.on('updateAssignedStatus', function (recipientID, data) {
-            io.emit('updateAssignedStatus', recipientID, data);
+        socket.on('updateAssignedStatus', function (recipientId, data) {
+            io.emit('updateAssignedStatus', recipientId, data);
         })
     });
 
@@ -286,7 +287,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 {
                     recipient_name: recipient.name,
                     type: 'LiveChat',
-                    live_user_id: recipient.id,
+                    live_chat_id: data.payload.chat.id,
                     last_message: new Date()
                 },
                 {upsert: true, new: true, setDefaultsOnInsert: true},
@@ -298,9 +299,10 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
 
     chatSDK.on('incoming_event', (data) => {
         let event = data.payload.event;
+        let chatId = data.payload.chat_id;
         if (event.type === 'message') {
             Recipient.findOneAndUpdate(
-                {live_user_id: event.author_id},
+                {live_chat_id: chatId},
                 {
                     last_message: new Date(),
                 },
@@ -389,7 +391,7 @@ app.post('/webhook', function (req, res) {
     // Make sure this is a page subscription
     if (data.object === 'page') {
         data.entry.forEach(function (pageEntry) {
-            var pageID = pageEntry.id;
+            var pageId = pageEntry.id;
             var timeOfEvent = pageEntry.time;
 
             // Iterate over each messaging event
@@ -483,8 +485,8 @@ function verifyRequestSignature(req, res, buf) {
  *
  */
 function receivedAuthentication(event) {
-    var senderID = event.sender.id;
-    var recipientID = event.recipient.id;
+    var senderId = event.sender.id;
+    var recipientId = event.recipient.id;
     var timeOfAuth = event.timestamp;
 
     // The 'ref' field is set in the 'Send to Messenger' plugin, in the 'data-ref'
@@ -495,12 +497,12 @@ function receivedAuthentication(event) {
     var passThroughParam = event.optin.ref;
 
     console.log("Received authentication for user %d and page %d with pass " +
-        "through param '%s' at %d", senderID, recipientID, passThroughParam,
+        "through param '%s' at %d", senderId, recipientId, passThroughParam,
         timeOfAuth);
 
     // When an authentication is received, we'll send a message back to the sender
     // to let them know it was successful.
-    sendTextMessage(senderID, "Authentication successful");
+    sendTextMessage(senderId, "Authentication successful");
 }
 
 /*
@@ -512,26 +514,26 @@ function receivedAuthentication(event) {
  *
  */
 function receivedMessage(event) {
-    var senderID = event.sender.id;
-    var recipientID = event.recipient.id;
+    var senderId = event.sender.id;
+    var recipientId = event.recipient.id;
     var timeOfMessage = event.timestamp;
     var message = event.message;
 
     console.log("Received message from user %d to page %d at %d with message:",
-        senderID, recipientID, timeOfMessage);
-    retrieveMessageInfo(message.mid, senderID, false);
+        senderId, recipientId, timeOfMessage);
+    retrieveMessageInfo(message.mid, senderId, false);
 }
 
-function retrieveMessageInfo(id, recipientID, owner) {
+function retrieveMessageInfo(id, recipientId, owner) {
     request({
-        uri: 'https://graph.facebook.com/v5.0/' + recipientID + '?fields=name',
+        uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
         qs: {access_token: PAGE_ACCESS_TOKEN},
         method: 'GET'
     }, function (err, res, body) {
         if (!err && res.statusCode === 200) {
             let result = JSON.parse(body);
             Recipient.findOneAndUpdate(
-                {recipient_id: recipientID},
+                {recipient_id: recipientId},
                 {
                     recipient_name: result.name,
                     type: 'Facebook',
@@ -550,8 +552,8 @@ function retrieveMessageInfo(id, recipientID, owner) {
                                 let msg;
                                 if (data.sticker) {
                                     msg = new Message({
-                                        sender_id: owner ? 'owner' : recipientID,
-                                        recipient_id: recipientID,
+                                        sender_id: owner ? 'owner' : recipientId,
+                                        recipient_id: recipientId,
                                         type: 'sticker',
                                         message_id: data.id,
                                         message_text: data.sticker,
@@ -571,8 +573,8 @@ function retrieveMessageInfo(id, recipientID, owner) {
                                         }
                                     });
                                     msg = new Message({
-                                        sender_id: owner ? 'owner' : recipientID,
-                                        recipient_id: recipientID,
+                                        sender_id: owner ? 'owner' : recipientId,
+                                        recipient_id: recipientId,
                                         type: 'attachment',
                                         message_id: data.id,
                                         attachments: attachments,
@@ -580,8 +582,8 @@ function retrieveMessageInfo(id, recipientID, owner) {
                                     });
                                 } else {
                                     msg = new Message({
-                                        sender_id: owner ? 'owner' : recipientID,
-                                        recipient_id: recipientID,
+                                        sender_id: owner ? 'owner' : recipientId,
+                                        recipient_id: recipientId,
                                         type: 'text',
                                         message_id: data.id,
                                         message_text: data.message,
@@ -591,7 +593,7 @@ function retrieveMessageInfo(id, recipientID, owner) {
                                 //Save Facebook Message
                                 msg.save(function (err, data) {
                                     if (!err) {
-                                        io.emit('receivedMessage', recipientID, body, owner);
+                                        io.emit('receivedMessage', recipientId, body, owner);
                                     }
                                 });
                             } else {
@@ -606,13 +608,13 @@ function retrieveMessageInfo(id, recipientID, owner) {
     });
 }
 
-function sendMarkSeen(recipientID) {
-    console.log("Mark last message as seen", recipientID);
+function sendMarkSeen(recipientId) {
+    console.log("Mark last message as seen", recipientId);
     var messageData = {
         messaging_type: "MESSAGE_TAG",
         tag: "ISSUE_RESOLUTION",
         recipient: {
-            id: recipientID
+            id: recipientId
         },
         sender_action: "mark_seen"
     };
@@ -620,7 +622,7 @@ function sendMarkSeen(recipientID) {
     callSendAPI(messageData);
 }
 
-function sendAttachment(recipientID, url, type) {
+function sendAttachment(recipientId, url, type) {
     if (typeof type === 'undefined') {
         type = 'file';
     }
@@ -628,7 +630,7 @@ function sendAttachment(recipientID, url, type) {
         messaging_type: "MESSAGE_TAG",
         tag: "ISSUE_RESOLUTION",
         recipient: {
-            id: recipientID
+            id: recipientId
         },
         message: {
             attachment: {
@@ -647,12 +649,12 @@ function sendAttachment(recipientID, url, type) {
  * Send a text message using the Send API.
  *
  */
-function sendTextMessage(recipientID, messageText) {
+function sendTextMessage(recipientId, messageText) {
     var messageData = {
         messaging_type: "MESSAGE_TAG",
         tag: "ISSUE_RESOLUTION",
         recipient: {
-            id: recipientID
+            id: recipientId
         },
         message: {
             text: messageText
@@ -676,13 +678,13 @@ function callSendAPI(messageData) {
 
     }, function (error, response, body) {
         if (!error && response.statusCode == 200) {
-            var recipientID = body.recipient_id;
+            var recipientId = body.recipient_id;
             var messageId = body.message_id;
             if (messageId) {
-                console.log("Successfully sent message with id %s to recipient %s", messageId, recipientID);
-                retrieveMessageInfo(messageId, recipientID, true);
+                console.log("Successfully sent message with id %s to recipient %s", messageId, recipientId);
+                retrieveMessageInfo(messageId, recipientId, true);
             } else {
-                console.log("Successfully called Send API for recipient %s", recipientID);
+                console.log("Successfully called Send API for recipient %s", recipientId);
             }
         } else {
             console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
@@ -803,7 +805,7 @@ function receivedLineMessage(event) {
     });
 }
 
-function sendLineTextMessage(recipientID, messageText) {
+function sendLineTextMessage(recipientId, messageText) {
     request({
         url: 'https://api.line.me/v2/bot/message/push',
         method: 'POST',
@@ -812,13 +814,13 @@ function sendLineTextMessage(recipientID, messageText) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            to: recipientID,
+            to: recipientId,
             messages: [{type: "text", text: messageText}]
         })
     }, function (err, res, body) {
         let msg = new Message({
             sender_id: 'owner',
-            recipient_id: recipientID,
+            recipient_id: recipientId,
             type: 'text',
             message_text: messageText
         });
@@ -833,13 +835,13 @@ function sendLineTextMessage(recipientID, messageText) {
                     id: data.message_id,
                     created_time: data.created
                 };
-                io.emit('receivedMessage', recipientID, JSON.stringify(obj), true);
+                io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
             }
         });
     });
 }
 
-function sendLineImage(recipientID, url, previewUrl) {
+function sendLineImage(recipientId, url, previewUrl) {
     request({
         url: 'https://api.line.me/v2/bot/message/push',
         method: 'POST',
@@ -848,13 +850,13 @@ function sendLineImage(recipientID, url, previewUrl) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            to: recipientID,
+            to: recipientId,
             messages: [{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]
         })
     }, function (err, res, body) {
         let msg = new Message({
             sender_id: 'owner',
-            recipient_id: recipientID,
+            recipient_id: recipientId,
             type: 'attachment',
             attachments: [
                 {
@@ -885,7 +887,7 @@ function sendLineImage(recipientID, url, previewUrl) {
                     id: data.message_id,
                     created_time: data.created
                 };
-                io.emit('receivedMessage', recipientID, JSON.stringify(obj), true);
+                io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
             }
         });
     });
@@ -1040,5 +1042,33 @@ async function refreshLiveChatToken() {
     })
 }
 
+function sendLiveChatTextMessage(recipientId, messageText) {
+    const recipient = Recipient.findOne({recipient_id: recipientId});
+    if (recipient) {
+        chatSDK.sendMessage(recipient.live_chat_id, messageText).then(function() {
+            let msg = new Message({
+                sender_id: 'owner',
+                recipient_id: recipientId,
+                type: 'text',
+                message_text: messageText
+            });
+            msg.save(function (err, data) {
+                if (!err) {
+                    let obj = {
+                        from: {
+                            name: 'Admin',
+                            id: 'owner',
+                        },
+                        message: data.message_text,
+                        id: data.message_id,
+                        created_time: data.created
+                    };
+                    io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                }
+            });
+        });
+    }
+
+}
 /* *************END LIVE CHAT******************* */
 module.exports = app;
