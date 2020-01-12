@@ -382,9 +382,6 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     function (error, res) {
                         if (!error) {
                             if (res.live_customer_id === event.author_id) {
-
-
-
                                 if (event.thumbnail_url) {
                                     attachmentSave = {
                                         type: 'image',
@@ -500,6 +497,35 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 access_token: data.access_token
             });
         })
+    });
+
+    chatSDK.on('thread_closed', (data) => {
+        let chatId = data.payload.chat_id;
+        Recipient.findOneAndUpdate(
+            {live_chat_id: chatId},
+            {
+                last_message: new Date(),
+            },
+            {upsert: true, new: true, setDefaultsOnInsert: true},
+            function (error, res) {
+                if (!error) {
+                    let msg = new Message({
+                        sender_id: ADMIN_ID,
+                        recipient_id: res.recipient_id,
+                        type: 'notify',
+                        message_text: 'Thread has been closed.'
+                    });
+                    msg.save(function (err, data) {
+                        if (!err) {
+                            let obj = {
+                                message: 'Thread has been closed.',
+                                type: 'notify'
+                            };
+                            io.emit('receivedMessage', res.recipient_id, JSON.stringify(obj), true);
+                        }
+                    });
+                }
+            });
     });
 
     // for restart app
