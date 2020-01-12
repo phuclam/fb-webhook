@@ -1216,7 +1216,6 @@ async function sendLiveChatFileMessage(recipientId, url) {
         fs.mkdirSync(dir);
     }
     let filePath = dir + '/' + fileName;
-
     await request(url).pipe(fs.createWriteStream(filePath).on('finish', function () {
         request({
             method: 'POST',
@@ -1229,26 +1228,23 @@ async function sendLiveChatFileMessage(recipientId, url) {
                 'file': fs.createReadStream(filePath)
 
             }
-        }, function (error, response) {
-            if (error) throw new Error(error);
-            console.log(response.body);
+        }, async function (err, res) {
+            if (!err && res.statusCode === 200) {
+                let response = JSON.parse(res.body);
+                await chatSDK.methodFactory({
+                    action: 'send_event',
+                    payload: {
+                        chat_id: recipient.live_chat_id,
+                        event: {
+                            type: 'file',
+                            url: response.url,
+                            recipients: 'all'
+                        }
+                    }
+                });
+            }
         });
     }));
-
-    /*await chatSDK.methodFactory({
-       action: 'upload_file',
-    });
-    await chatSDK.methodFactory({
-        action: 'send_event',
-        payload: {
-            chat_id: recipient.live_chat_id,
-            event: {
-                type: 'file',
-                url: url,
-                recipients: 'all'
-            }
-        }
-    });*/
 }
 
 
