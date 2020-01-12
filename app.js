@@ -252,7 +252,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         } catch (err) {
             throw new Error(err);
         }
-    })
+    });
 
     /**
      * Live Chat Webhook
@@ -1208,6 +1208,36 @@ async function sendLiveChatTextMessage(recipientId, messageText) {
 
 async function sendLiveChatFileMessage(recipientId, url) {
     const recipient = await Recipient.findOne({recipient_id: recipientId});
+    let configData = JSON.parse(fs.readFileSync(LIVECHAT_CONFIG_FILE));
+
+    let fileName = getFileName(url);
+    let dir = './public/uploads';
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
+    }
+    let filePath = dir + '/' + fileName;
+
+    await request(url).pipe(fs.createWriteStream(filePath).on('finish', function () {
+        request({
+            method: 'POST',
+            url: 'https://api.livechatinc.com/v3.1/agent/action/upload_file',
+            headers: {
+                'Authorization': configData.token_type + ' ' + configData.access_token,
+                'Content-Type': 'multipart/form-data'
+            },
+            formData: {
+                'file': filePath
+
+            }
+        }, function (error, response) {
+            if (error) throw new Error(error);
+            console.log(response.body);
+        });
+    }));
+
+    /*await chatSDK.methodFactory({
+       action: 'upload_file',
+    });
     await chatSDK.methodFactory({
         action: 'send_event',
         payload: {
@@ -1218,8 +1248,13 @@ async function sendLiveChatFileMessage(recipientId, url) {
                 recipients: 'all'
             }
         }
-    });
+    });*/
 }
 
+
 /* *************END LIVE CHAT******************* */
+
+function getFileName(path) {
+    return path.replace(/^.*[\\\/]/, '');
+}
 module.exports = app;
