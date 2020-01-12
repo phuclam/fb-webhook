@@ -117,7 +117,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             } else if (type === 'Line') {
                 sendLineTextMessage(recipientId, messageText);
             } else if (type === 'LiveChat') {
-                sendLiveChatTextMessage(recipientId, messageText);
+                sendLiveChatTextMessage(recipientId, messageText).then(function () {
+                    //do nothing.
+                });
             }
         });
         //Send attachment from url
@@ -126,6 +128,10 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 sendLineImage(recipientId, url, previewUrl);
             } else if (type === 'Facebook') {
                 sendAttachment(recipientId, url, fileType);
+            } else if (type === 'LiveChat') {
+                sendLiveChatFileMessage(recipientId, url).then(function () {
+                    //do nothing
+                });
             }
         });
         //Mark as seen
@@ -1198,7 +1204,22 @@ async function sendLiveChatTextMessage(recipientId, messageText) {
             //do nothing
         });
     }
-
 }
+
+async function sendLiveChatFileMessage(recipientId, url) {
+    const recipient = await Recipient.findOne({recipient_id: recipientId});
+    await chatSDK.methodFactory({
+        action: 'send_event',
+        payload: {
+            chat_id: recipient.live_chat_id,
+            event: {
+                type: 'file',
+                url: url,
+                recipients: 'all'
+            }
+        }
+    });
+}
+
 /* *************END LIVE CHAT******************* */
 module.exports = app;
