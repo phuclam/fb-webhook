@@ -1226,7 +1226,7 @@ async function sendLiveChatFileMessage(recipientId, url) {
                 'Content-Type': 'multipart/form-data'
             },
             formData: {
-                'file': filePath
+                'file': fs.createReadStream(filePath)
 
             }
         }, function (error, response) {
