@@ -186,6 +186,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 output.push({
                     id: recipient.recipient_id,
                     name: recipient.recipient_name,
+                    email: recipient.email,
                     updated_time: recipient.last_message,
                     type: recipient.type,
                     message: message
@@ -212,6 +213,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     output.push({
                         id: recipient.recipient_id,
                         name: recipient.recipient_name,
+                        email: recipient.email,
                         updated_time: recipient.last_message,
                         type: recipient.type,
                         message: message
