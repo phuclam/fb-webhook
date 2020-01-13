@@ -70,6 +70,7 @@ var recipientSchema = mongoose.Schema({
     recipient_id: {type: String, unique: true},
     recipient_name: String,
     type: String,
+    email: String,
     live_chat_id: {type: String, unique: true},
     live_customer_id: String,
     last_message: {type: Date, default: Date.now}
@@ -296,6 +297,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 {
                     recipient_name: recipient.name,
                     type: 'LiveChat',
+                    email: recipient.email,
                     live_chat_id: data.payload.chat.id,
                     live_customer_id: recipient.id,
                     last_message: new Date()
