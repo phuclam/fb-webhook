@@ -80,7 +80,7 @@ var Message = mongoose.model('messages', messageSchema);
 var Recipient = mongoose.model('recipients', recipientSchema);
 
 //Live chat
-const chatSDK = new ChatSDK({debug: true});
+const chatSDK = new ChatSDK({debug: false});
 
 /*
 //secret: f6b3d6e6f93d3b2200ad11b3d13db1e9
