@@ -257,6 +257,32 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }
     });
 
+    app.post('/api/history', async function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+
+        const recipientId = req.query.recipient;
+        const start = req.query.start;
+        const end = req.query.end;
+
+        try {
+            const messages = await Message.find({
+                recipient_id: recipientId,
+                created: {
+                    $gte: new Date(start),
+                    $lte: end !== '' ? new Date(end) : new Date()
+                }
+            }).sort('-created');
+
+            res.json({
+                data: messages
+            });
+        } catch (err) {
+            throw new Error(err);
+        }
+    });
+
     /**
      * Live Chat Webhook
      */
