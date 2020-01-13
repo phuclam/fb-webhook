@@ -1017,209 +1017,117 @@ function receivedLineMessage(event) {
 }
 
 function sendLineTextMessage(recipientId, messageText) {
-    request({
-        url: 'https://api.line.me/v2/bot/message/push',
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
-            'Content-Type': 'application/json'
+    Recipient.findOneAndUpdate(
+        {recipient_id: recipientId},
+        {
+            last_message: new Date(),
         },
-        body: JSON.stringify({
-            to: recipientId,
-            messages: [{type: "text", text: messageText}]
-        })
-    }, function (err, res, body) {
-        let msg = new Message({
-            sender_id: ADMIN_ID,
-            recipient_id: recipientId,
-            type: 'text',
-            message_text: messageText
-        });
-        msg.save(function (err, data) {
-            if (!err) {
-                let obj = {
-                    from: {
-                        name: ADMIN_NAME,
-                        id: ADMIN_ID,
+        {upsert: true, new: true, setDefaultsOnInsert: true},
+        function (error) {
+            if (!error) {
+                request({
+                    url: 'https://api.line.me/v2/bot/message/push',
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
+                        'Content-Type': 'application/json'
                     },
-                    message: data.message_text,
-                    id: data.message_id,
-                    created_time: data.created
-                };
-                io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                    body: JSON.stringify({
+                        to: recipientId,
+                        messages: [{type: "text", text: messageText}]
+                    })
+                }, function (err, res, body) {
+                    let msg = new Message({
+                        sender_id: ADMIN_ID,
+                        recipient_id: recipientId,
+                        type: 'text',
+                        message_text: messageText
+                    });
+                    msg.save(function (err, data) {
+                        if (!err) {
+                            let obj = {
+                                from: {
+                                    name: ADMIN_NAME,
+                                    id: ADMIN_ID,
+                                },
+                                message: data.message_text,
+                                id: data.message_id,
+                                created_time: data.created
+                            };
+                            io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                        }
+                    });
+                });
             }
         });
-    });
 }
 
 function sendLineImage(recipientId, url, previewUrl) {
-    request({
-        url: 'https://api.line.me/v2/bot/message/push',
-        method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
-            'Content-Type': 'application/json'
+    Recipient.findOneAndUpdate(
+        {recipient_id: recipientId},
+        {
+            last_message: new Date(),
         },
-        body: JSON.stringify({
-            to: recipientId,
-            messages: [{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]
-        })
-    }, function (err, res, body) {
-        let msg = new Message({
-            sender_id: ADMIN_ID,
-            recipient_id: recipientId,
-            type: 'attachment',
-            attachments: [
-                {
-                    type: 'image',
-                    url: url,
-                    preview_url: previewUrl,
-                }
-            ]
-        });
-
-        msg.save(function (err, data) {
-            if (!err) {
-                let obj = {
-                    from: {
-                        name: ADMIN_NAME,
-                        id: ADMIN_ID,
+        {upsert: true, new: true, setDefaultsOnInsert: true},
+        function (error) {
+            if (!error) {
+                request({
+                    url: 'https://api.line.me/v2/bot/message/push',
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
+                        'Content-Type': 'application/json'
                     },
-                    attachments: {
-                        data: [
+                    body: JSON.stringify({
+                        to: recipientId,
+                        messages: [{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]
+                    })
+                }, function (err, res, body) {
+                    let msg = new Message({
+                        sender_id: ADMIN_ID,
+                        recipient_id: recipientId,
+                        type: 'attachment',
+                        attachments: [
                             {
-                                image_data: {
-                                    url: url,
-                                    preview_url: previewUrl,
-                                }
+                                type: 'image',
+                                url: url,
+                                preview_url: previewUrl,
                             }
                         ]
-                    },
-                    id: data.message_id,
-                    created_time: data.created
-                };
-                io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                    });
+
+                    msg.save(function (err, data) {
+                        if (!err) {
+                            let obj = {
+                                from: {
+                                    name: ADMIN_NAME,
+                                    id: ADMIN_ID,
+                                },
+                                attachments: {
+                                    data: [
+                                        {
+                                            image_data: {
+                                                url: url,
+                                                preview_url: previewUrl,
+                                            }
+                                        }
+                                    ]
+                                },
+                                id: data.message_id,
+                                created_time: data.created
+                            };
+                            io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                        }
+                    });
+                });
             }
         });
-    });
 }
 
 /* ***************END LINE EVENT**************** */
 
 
 /* ***************LIVE CHAT********************* */
-function registerLiveChatWebHook(configData) {
-    //incoming_chat_thread
-    request({
-        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': configData.token_type + ' ' + configData.access_token
-        },
-        body: JSON.stringify({
-            url: SERVER_URL + '/live-chat-start',
-            description: 'Thread Start',
-            action: 'incoming_chat_thread',
-            secret_key: VALIDATION_KEY
-        })
-    }, function (err, res, body) {
-        if (!err && res.statusCode === 200) {
-            console.log('Register incoming_chat_thread successful !');
-            console.log(body);
-            fs.writeFileSync('incoming_chat_thread.json', body);
-        } else {
-            console.log('Register incoming_chat_thread error !')
-        }
-    });
-    //incoming_event
-    request({
-        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': configData.token_type + ' ' + configData.access_token
-        },
-        body: JSON.stringify({
-            url: SERVER_URL + '/live-chat-incoming-event',
-            description: 'Incomming event',
-            action: 'incoming_event',
-            secret_key: VALIDATION_KEY
-        })
-    }, function (err, res, body) {
-        if (!err && res.statusCode === 200) {
-            console.log('Register incoming_event successful !');
-            console.log(body);
-            fs.writeFileSync('incoming_event.json', body);
-        } else {
-            console.log('Register incoming_event error !')
-        }
-    });
-    //thread_closed
-    request({
-        url: 'https://api.livechatinc.com/v3.1/configuration/action/register_webhook',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': configData.token_type + ' ' + configData.access_token
-        },
-        body: JSON.stringify({
-            url: SERVER_URL + '/live-chat-close',
-            description: 'Thread End',
-            action: 'thread_closed',
-            secret_key: VALIDATION_KEY
-        })
-    }, function (err, res, body) {
-        if (!err && res.statusCode === 200) {
-            console.log('Register thread_closed successful !');
-            console.log(body);
-            fs.writeFileSync('thread_closed.json', body);
-        } else {
-            console.log('Register thread_closed error !')
-        }
-    });
-    //Create chat bot
-    request({
-        url: 'https://api.livechatinc.com/v3.1/configuration/action/create_bot_agent',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': configData.token_type + ' ' + configData.access_token
-        },
-        body: JSON.stringify({
-            name: 'Support',
-            status: 'accepting chats'
-        })
-    }, function (err, res, body) {
-        if (!err && res.statusCode === 200) {
-            console.log('A chat bot has bean created !');
-            console.log(body);
-        }
-    });
-}
-
-function markSeenLiveChat(chatId, time) {
-    let configData = JSON.parse(fs.readFileSync(LIVECHAT_CONFIG_FILE));
-    request({
-        url: 'https://api.livechatinc.com/v3.1/agent/action/mark_events_as_seen',
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': configData.token_type + ' ' + configData.access_token
-        },
-        body: JSON.stringify({
-            chat_id: chatId,
-            seen_up_to: time
-        })
-    }, function (err, res, body) {
-        if (!err && res.statusCode === 200) {
-            console.log('--- mark seen ----', new Date());
-        } else {
-            console.log(err)
-            console.log(chatId + ' ---- ' + time);
-        }
-    });
-}
 
 async function refreshLiveChatToken() {
     return new Promise((resolve) => {
