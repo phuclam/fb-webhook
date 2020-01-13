@@ -178,7 +178,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 if (msg) {
                     message = {
                         type: msg.type,
-                        text: msg.type === 'text' ? msg.message_text : '(' + msg.type + ')',
+                        text: msg.type === 'text' || msg.type === 'notify' ? msg.message_text : '(' + msg.type + ')',
                         created: msg.created
                     }
                 }
