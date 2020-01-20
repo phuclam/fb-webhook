@@ -779,6 +779,8 @@ function retrieveMessageInfo(id, recipientId, owner) {
                                                 url: i.image_data.url,
                                                 preview_url: i.image_data.preview_url
                                             });
+                                        } else if (i.video_data) {
+                                            attachments.push({type: 'file', url: i.video_data.url, name: i.name})
                                         } else {
                                             attachments.push({type: 'file', url: i.file_url, name: i.name});
                                         }
