@@ -270,8 +270,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             const messages = await Message.find({
                 recipient_id: recipientId,
                 created: {
-                    $gte: new Date(start),
-                    $lte: end !== '' ? new Date(end) : new Date()
+                    $gte: new Date(start + ' UTC'),
+                    $lte: end !== '' ? new Date(end + ' UTC') : new Date()
                 }
             }).sort('-created');
 
