@@ -71,7 +71,7 @@ var recipientSchema = mongoose.Schema({
     recipient_name: String,
     type: String,
     email: String,
-    live_chat_id: {type: String, unique: true},
+    live_chat_id: String,
     live_customer_id: String,
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
