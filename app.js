@@ -320,20 +320,22 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     chatSDK.on('incoming_chat_thread', (data) => {
         if (data.payload.chat.users[0]) {
             let recipient = data.payload.chat.users[0];
-            Recipient.findOneAndUpdate(
-                {recipient_id: md5(recipient.email.toLowerCase())},
-                {
-                    recipient_name: recipient.name,
-                    type: 'LiveChat',
-                    email: recipient.email,
-                    live_chat_id: data.payload.chat.id,
-                    live_customer_id: recipient.id,
-                    last_message: new Date()
-                },
-                {upsert: true, new: true, setDefaultsOnInsert: true},
-                function (error) {
-                    //do nothing
-                });
+            if (recipient.email) {
+                Recipient.findOneAndUpdate(
+                    {recipient_id: md5(recipient.email.toLowerCase())},
+                    {
+                        recipient_name: recipient.name,
+                        type: 'LiveChat',
+                        email: recipient.email,
+                        live_chat_id: data.payload.chat.id,
+                        live_customer_id: recipient.id,
+                        last_message: new Date()
+                    },
+                    {upsert: true, new: true, setDefaultsOnInsert: true},
+                    function (error) {
+                        //do nothing
+                    });
+            }
         }
     });
 
