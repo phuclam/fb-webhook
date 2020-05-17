@@ -827,7 +827,7 @@ function sendMarkSeen(recipientId) {
     console.log("Mark last message as seen", recipientId);
     var messageData = {
         messaging_type: "MESSAGE_TAG",
-        tag: "ISSUE_RESOLUTION",
+        tag: "HUMAN_AGENT",
         recipient: {
             id: recipientId
         },
@@ -843,7 +843,7 @@ function sendAttachment(recipientId, url, type) {
     }
     var messageData = {
         messaging_type: "MESSAGE_TAG",
-        tag: "ISSUE_RESOLUTION",
+        tag: "HUMAN_AGENT",
         recipient: {
             id: recipientId
         },
@@ -867,7 +867,7 @@ function sendAttachment(recipientId, url, type) {
 function sendTextMessage(recipientId, messageText) {
     var messageData = {
         messaging_type: "MESSAGE_TAG",
-        tag: "ISSUE_RESOLUTION",
+        tag: "HUMAN_AGENT",
         recipient: {
             id: recipientId
         },
