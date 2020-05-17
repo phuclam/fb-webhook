@@ -523,13 +523,13 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }
     });
 
-    chatSDK.on('agent_disconnected', function () {
-        refreshLiveChatToken().then((data) => {
-            chatSDK.init({
-                access_token: data.access_token
-            });
-        })
-    });
+    // chatSDK.on('agent_disconnected', function () {
+    //     refreshLiveChatToken().then((data) => {
+    //         chatSDK.init({
+    //             access_token: data.access_token
+    //         });
+    //     })
+    // });
 
     chatSDK.on('thread_closed', (data) => {
         let chatId = data.payload.chat_id;
