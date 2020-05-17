@@ -1168,9 +1168,13 @@ async function refreshLiveChatToken() {
 async function sendLiveChatTextMessage(recipientId, messageText) {
     const recipient = await Recipient.findOne({recipient_id: recipientId});
     if (recipient) {
-        chatSDK.sendMessage(recipient.live_chat_id, messageText).then(function() {
-            //do nothing
-        });
+        try {
+            chatSDK.sendMessage(recipient.live_chat_id, messageText).then(function() {
+                //do nothing
+            });
+        } catch (e) {
+            console.log(e)
+        }
     }
 }
 
