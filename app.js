@@ -25,12 +25,11 @@ const CONFIG_FILE = 'config.json';
 const VALIDATION_TOKEN = process.env.FB_VALIDATE_TOKEN;
 
 // LiveChat
-const LIVECHAT_CLIENT_ID = process.env.LIVECHAT_CLIENT_ID;
-const LIVECHAT_CLIENT_SECRET = process.env.LIVECHAT_CLIENT_SECRET;
+const LIVECHAT_CLIENT_ID = process.env.LIVECHAT_CLIENT_ID || '';
+const LIVECHAT_CLIENT_SECRET = process.env.LIVECHAT_CLIENT_SECRET || '';
 const LIVECHAT_CONFIG_FILE = 'livechat.json';
 
-if (!(VALIDATION_TOKEN && SERVER_URL && ALLOW_ORIGIN
-    && LIVECHAT_CLIENT_ID && LIVECHAT_CLIENT_SECRET)) {
+if (!(VALIDATION_TOKEN && SERVER_URL && ALLOW_ORIGIN)) {
     console.error("Missing config values");
     process.exit(1);
 }
