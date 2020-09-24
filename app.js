@@ -16,26 +16,20 @@ const bodyParser = require('body-parser'),
 // Origin
 const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN;
 const SERVER_URL = process.env.SERVER_URL;
-const VALIDATION_KEY = 'arzqvfom4121xv9vidfp';
+const CRM_VALIDATION_KEY = '+91cHDeZoCM7syHhMVMAqI7j4gHHFouz91XpS+TA3XQ=';
 const ADMIN_NAME = 'Admin';
 const ADMIN_ID = 'owner';
+const CONFIG_FILE = 'config.json';
 
 // Facebook
-const APP_SECRET = process.env.FB_APP_SECRET;
 const VALIDATION_TOKEN = process.env.FB_VALIDATE_TOKEN;
-const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN;
-
-// Line
-const LINE_ACCESS_TOKEN = process.env.LINE_ACCESS_TOKEN;
-const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
 // LiveChat
 const LIVECHAT_CLIENT_ID = process.env.LIVECHAT_CLIENT_ID;
 const LIVECHAT_CLIENT_SECRET = process.env.LIVECHAT_CLIENT_SECRET;
 const LIVECHAT_CONFIG_FILE = 'livechat.json';
 
-if (!(APP_SECRET && VALIDATION_TOKEN && PAGE_ACCESS_TOKEN && SERVER_URL && ALLOW_ORIGIN
-    && LINE_ACCESS_TOKEN && LINE_CHANNEL_SECRET
+if (!(VALIDATION_TOKEN && SERVER_URL && ALLOW_ORIGIN
     && LIVECHAT_CLIENT_ID && LIVECHAT_CLIENT_SECRET)) {
     console.error("Missing config values");
     process.exit(1);
@@ -69,6 +63,7 @@ var messageSchema = mongoose.Schema({
 var recipientSchema = mongoose.Schema({
     recipient_id: {type: String, unique: true},
     recipient_name: String,
+    channel_id: String,
     type: String,
     email: String,
     live_chat_id: String,
@@ -96,6 +91,8 @@ const chatSDK = new ChatSDK({debug: false});
  &redirect_uri=https://kycdev.bittenet.com/live-chat-verify
 
 */
+var appConfig = fs.readFileSync(CONFIG_FILE);
+var appData = JSON.parse(appConfig);
 
 mongoose.Promise = require('bluebird');
 mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
@@ -112,11 +109,11 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         console.log('A new Client has just been connected');
         socket.on('disconnect', () => console.log('Client disconnected'));
         //Send message
-        socket.on('sendMessage', function (type, recipientId, messageText) {
+        socket.on('sendMessage', function (type, channelId, recipientId, messageText) {
             if (type === 'Facebook') {
-                sendTextMessage(recipientId, messageText);
+                sendTextMessage(channelId, recipientId, messageText);
             } else if (type === 'Line') {
-                sendLineTextMessage(recipientId, messageText);
+                sendLineTextMessage(channelId, recipientId, messageText);
             } else if (type === 'LiveChat') {
                 sendLiveChatTextMessage(recipientId, messageText).then(function () {
                     //do nothing.
@@ -124,11 +121,11 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             }
         });
         //Send attachment from url
-        socket.on('sendAttachment', function (type, recipientId, fileType, url, previewUrl) {
+        socket.on('sendAttachment', function (type, channelId, recipientId, fileType, url, previewUrl) {
             if (type === 'Line') {
-                sendLineImage(recipientId, url, previewUrl);
+                sendLineImage(channelId, recipientId, url, previewUrl);
             } else if (type === 'Facebook') {
-                sendAttachment(recipientId, url, fileType);
+                sendAttachment(channelId, recipientId, url, fileType);
             } else if (type === 'LiveChat') {
                 sendLiveChatFileMessage(recipientId, url).then(function () {
                     //do nothing
@@ -136,8 +133,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
             }
         });
         //Mark as seen
-        socket.on('seen', function (recipientId) {
-            sendMarkSeen(recipientId);
+        socket.on('seen', function (channelId, recipientId) {
+            sendMarkSeen(channelId, recipientId);
         });
         //Update Status / Assigned to
         socket.on('updateAssignedStatus', function (recipientId, data) {
@@ -146,22 +143,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     });
 
     /**
-     * Line Webhook
+     * API FOR WEB
      */
-
-    app.post('/line-webhook', function (req, res) {
-        if (!res.signature_matched) {
-            return res.sendStatus(403);
-        }
-        var data = req.body;
-        data.events.forEach(function (entry) {
-            if (entry.type === 'message') {
-                receivedLineMessage(entry);
-            }
-        });
-        res.sendStatus(200);
-    });
-
     app.post('/api/conversations', async function (req, res) {
         if (!res.signature_matched) {
             return res.sendStatus(403);
@@ -189,7 +172,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     email: recipient.email,
                     updated_time: recipient.last_message,
                     type: recipient.type,
-                    message: message
+                    message: message,
+                    channel_id: recipient.channel_id
                 });
                 next = '';
             } else {
@@ -216,7 +200,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                         email: recipient.email,
                         updated_time: recipient.last_message,
                         type: recipient.type,
-                        message: message
+                        message: message,
+                        channel_id: recipient.channel_id
                     });
                 }
                 next = (page + 1) <= max ? (page + 1) : ''
@@ -283,6 +268,32 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }
     });
 
+    app.post('/api/config', async function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(req.body));
+        appData = req.body;
+        res.sendStatus(200);
+    })
+
+    /**
+     * Line Webhook
+     */
+
+    app.post('/line/:channel/webhook', function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+        var data = req.body;
+        var channel = req.params.channel;
+        data.events.forEach(function (entry) {
+            if (entry.type === 'message') {
+                receivedLineMessage(channel, entry);
+            }
+        });
+        res.sendStatus(200);
+    });
     /**
      * Live Chat Webhook
      */
@@ -580,7 +591,6 @@ app.get('/webhook', function (req, res) {
     }
     if (req.query['hub.mode'] === 'subscribe' &&
         req.query['hub.verify_token'] === VALIDATION_TOKEN) {
-        console.log("Validating webhook");
         res.status(200).send(req.query['hub.challenge']);
     } else {
         console.error("Failed validation. Make sure the validation tokens match.");
@@ -606,7 +616,6 @@ app.post('/webhook', function (req, res) {
         data.entry.forEach(function (pageEntry) {
             var pageId = pageEntry.id;
             var timeOfEvent = pageEntry.time;
-
             // Iterate over each messaging event
             pageEntry.messaging.forEach(function (messagingEvent) {
                 if (messagingEvent.optin) {
@@ -662,28 +671,38 @@ function verifyRequestSignature(req, res, buf) {
     if (req.headers["x-hub-signature"]) {
         let signature = req.headers["x-hub-signature"];
         var elements = signature.split('=');
-        var method = elements[0];
         var signatureHash = elements[1];
 
-        var expectedHash = crypto.createHmac('sha1', APP_SECRET).update(buf).digest('hex');
-        if (signatureHash === expectedHash) {
-            res.signature_matched = true;
+        let dataFacebook = appData['facebook'];
+        let allowedFacebook = [];
+        if (typeof dataFacebook !== 'undefined') {
+            Object.keys(dataFacebook).forEach(function (value) {
+                allowedFacebook.push(crypto.createHmac('sha1', dataFacebook[value]['secret']).update(buf).digest('hex'));
+            })
+            if (allowedFacebook.indexOf(signatureHash) !== -1) {
+                res.signature_matched = true;
+            }
         }
     }
     //verify Line
     else if (req.headers["x-line-signature"]) {
         let signature = req.headers["x-line-signature"];
-        let expectedHash = crypto.createHmac('SHA256', LINE_CHANNEL_SECRET).update(buf).digest('base64');
-        if (signature === expectedHash) {
-            res.signature_matched = true;
+        let dataLine = appData['line'];
+        let allowedLine = [];
+        if (typeof dataLine !== 'undefined') {
+            Object.keys(dataLine).forEach(function (value) {
+                allowedLine.push(crypto.createHmac('SHA256', value).update(buf).digest('base64'));
+            })
+
+            if (allowedLine.indexOf(signature) !== -1) {
+                res.signature_matched = true;
+            }
         }
     }
     //verify CRM
     else if (req.headers["x-crm-signature"]) {
         let signature = req.headers["x-crm-signature"];
-        let expectedHash = crypto.createHmac('SHA256', VALIDATION_KEY).update(buf).digest('base64');
-
-        if (signature === expectedHash) {
+        if (signature === CRM_VALIDATION_KEY) {
             res.signature_matched = true;
         }
     }
@@ -727,20 +746,17 @@ function receivedAuthentication(event) {
  *
  */
 function receivedMessage(event) {
-    var senderId = event.sender.id;
-    var recipientId = event.recipient.id;
-    var timeOfMessage = event.timestamp;
+    var recipientId = event.sender.id;
+    var channelId = event.recipient.id;
     var message = event.message;
-
-    console.log("Received message from user %d to page %d at %d with message:",
-        senderId, recipientId, timeOfMessage);
-    retrieveMessageInfo(message.mid, senderId, false);
+    retrieveMessageInfo(channelId, message.mid, recipientId, false);
 }
 
-function retrieveMessageInfo(id, recipientId, owner) {
+function retrieveMessageInfo(channelId, id, recipientId, owner) {
+    let accessToken = appData['facebook'][channelId]['token'];
     request({
         uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
-        qs: {access_token: PAGE_ACCESS_TOKEN},
+        qs: {access_token: accessToken},
         method: 'GET'
     }, function (err, res, body) {
         if (!err && res.statusCode === 200) {
@@ -750,6 +766,7 @@ function retrieveMessageInfo(id, recipientId, owner) {
                 {
                     recipient_name: result.name,
                     type: 'Facebook',
+                    channel_id: channelId,
                     last_message: new Date(),
                 },
                 {upsert: true, new: true, setDefaultsOnInsert: true},
@@ -757,7 +774,7 @@ function retrieveMessageInfo(id, recipientId, owner) {
                     if (!error) {
                         request({
                             uri: 'https://graph.facebook.com/v5.0/' + id + '?fields=from,message,attachments,sticker,created_time',
-                            qs: {access_token: PAGE_ACCESS_TOKEN},
+                            qs: {access_token: accessToken},
                             method: 'GET'
                         }, function (error, response, body) {
                             if (!error && response.statusCode === 200) {
@@ -806,9 +823,13 @@ function retrieveMessageInfo(id, recipientId, owner) {
                                     });
                                 }
                                 //Save Facebook Message
-                                msg.save(function (err, data) {
+                                msg.save(function (err) {
                                     if (!err) {
-                                        io.emit('receivedMessage', recipientId, body, owner);
+                                        if (owner) {
+                                            data.from.name = ADMIN_NAME;
+                                            data.from.id = ADMIN_ID;
+                                        }
+                                        io.emit('receivedMessage', channelId, recipientId, JSON.stringify(data), owner);
                                     }
                                 });
                             } else {
@@ -823,7 +844,7 @@ function retrieveMessageInfo(id, recipientId, owner) {
     });
 }
 
-function sendMarkSeen(recipientId) {
+function sendMarkSeen(channelId, recipientId) {
     console.log("Mark last message as seen", recipientId);
     var messageData = {
         messaging_type: "MESSAGE_TAG",
@@ -834,10 +855,10 @@ function sendMarkSeen(recipientId) {
         sender_action: "mark_seen"
     };
 
-    callSendAPI(messageData);
+    callSendAPI(channelId, messageData);
 }
 
-function sendAttachment(recipientId, url, type) {
+function sendAttachment(channelId, recipientId, url, type) {
     if (typeof type === 'undefined') {
         type = 'file';
     }
@@ -857,14 +878,14 @@ function sendAttachment(recipientId, url, type) {
         }
     };
 
-    callSendAPI(messageData);
+    callSendAPI(channelId, messageData);
 }
 
 /*
  * Send a text message using the Send API.
  *
  */
-function sendTextMessage(recipientId, messageText) {
+function sendTextMessage(channelId, recipientId, messageText) {
     var messageData = {
         messaging_type: "MESSAGE_TAG",
         tag: "ACCOUNT_UPDATE",
@@ -876,7 +897,7 @@ function sendTextMessage(recipientId, messageText) {
         }
     };
 
-    callSendAPI(messageData);
+    callSendAPI(channelId, messageData);
 }
 
 /*
@@ -884,20 +905,21 @@ function sendTextMessage(recipientId, messageText) {
  * get the message id in a response
  *
  */
-function callSendAPI(messageData) {
+function callSendAPI(channelId, messageData) {
+    let accessToken = appData['facebook'][channelId]['token'];
     request({
         uri: 'https://graph.facebook.com/v5.0/me/messages',
-        qs: {access_token: PAGE_ACCESS_TOKEN},
+        qs: {access_token: accessToken},
         method: 'POST',
         json: messageData
 
     }, function (error, response, body) {
-        if (!error && response.statusCode == 200) {
+        if (!error && response.statusCode === 200) {
             var recipientId = body.recipient_id;
             var messageId = body.message_id;
             if (messageId) {
                 console.log("Successfully sent message with id %s to recipient %s", messageId, recipientId);
-                retrieveMessageInfo(messageId, recipientId, true);
+                retrieveMessageInfo(channelId, messageId, recipientId, true);
             } else {
                 console.log("Successfully called Send API for recipient %s", recipientId);
             }
@@ -908,12 +930,13 @@ function callSendAPI(messageData) {
 }
 
 /* ****************LINE EVENT******************* */
-function receivedLineMessage(event) {
+function receivedLineMessage(channel, event) {
+    let accessToken = appData['line'][channel]['token'];
     request({
         url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
         method: 'GET',
         headers: {
-            'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN
+            'Authorization': 'Bearer ' + accessToken
         },
         encoding: null
     }, function (err, res, body) {
@@ -922,6 +945,7 @@ function receivedLineMessage(event) {
             {recipient_id: event.source.userId},
             {
                 recipient_name: profile.displayName,
+                channel_id: channel,
                 type: 'Line',
                 last_message: new Date(),
             },
@@ -948,7 +972,7 @@ function receivedLineMessage(event) {
                                         id: event.message.id,
                                         created_time: data.created
                                     };
-                                    io.emit('receivedMessage', event.source.userId, JSON.stringify(obj), false);
+                                    io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
                                 }
                             });
                             break;
@@ -957,7 +981,7 @@ function receivedLineMessage(event) {
                                 url: 'https://api-data.line.me/v2/bot/message/' + event.message.id + '/content',
                                 method: 'GET',
                                 headers: {
-                                    'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN
+                                    'Authorization': 'Bearer ' + accessToken
                                 },
                                 encoding: null
                             }, function (error, response, body) {
@@ -1002,7 +1026,7 @@ function receivedLineMessage(event) {
                                                 id: event.message.id,
                                                 created_time: data.created
                                             };
-                                            io.emit('receivedMessage', event.source.userId, JSON.stringify(obj), false);
+                                            io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
                                         }
                                     });
                                 }
@@ -1020,7 +1044,8 @@ function receivedLineMessage(event) {
     });
 }
 
-function sendLineTextMessage(recipientId, messageText) {
+function sendLineTextMessage(channel, recipientId, messageText) {
+    let accessToken = appData['line'][channel]['token'];
     Recipient.findOneAndUpdate(
         {recipient_id: recipientId},
         {
@@ -1033,7 +1058,7 @@ function sendLineTextMessage(recipientId, messageText) {
                     url: 'https://api.line.me/v2/bot/message/push',
                     method: 'POST',
                     headers: {
-                        'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
+                        'Authorization': 'Bearer ' + accessToken,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -1058,7 +1083,7 @@ function sendLineTextMessage(recipientId, messageText) {
                                 id: data.message_id,
                                 created_time: data.created
                             };
-                            io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                            io.emit('receivedMessage', channel, recipientId, JSON.stringify(obj), true);
                         }
                     });
                 });
@@ -1066,7 +1091,8 @@ function sendLineTextMessage(recipientId, messageText) {
         });
 }
 
-function sendLineImage(recipientId, url, previewUrl) {
+function sendLineImage(channel, recipientId, url, previewUrl) {
+    let accessToken = appData['line'][channel]['token'];
     Recipient.findOneAndUpdate(
         {recipient_id: recipientId},
         {
@@ -1079,7 +1105,7 @@ function sendLineImage(recipientId, url, previewUrl) {
                     url: 'https://api.line.me/v2/bot/message/push',
                     method: 'POST',
                     headers: {
-                        'Authorization': 'Bearer ' + LINE_ACCESS_TOKEN,
+                        'Authorization': 'Bearer ' + accessToken,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -1120,7 +1146,7 @@ function sendLineImage(recipientId, url, previewUrl) {
                                 id: data.message_id,
                                 created_time: data.created
                             };
-                            io.emit('receivedMessage', recipientId, JSON.stringify(obj), true);
+                            io.emit('receivedMessage', channel, recipientId, JSON.stringify(obj), true);
                         }
                     });
                 });
