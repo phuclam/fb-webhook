@@ -1011,7 +1011,8 @@ function callSendAPI(channelId, messageData) {
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(channel, event) {
     console.log('*** ' + channel + ' ****');
-    console.log(appData);
+    console.log(appData['line']);
+    console.log('*** ' + channel + ' ****');
 
     let accessToken = appData['line'][channel]['token'];
     request({
