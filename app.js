@@ -825,6 +825,7 @@ function receivedMessage(event) {
 }
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
+    console.log('fb channel id ' + channelId);
     let accessToken = appData['facebook'][channelId]['token'];
 
 console.log(recipientId);
@@ -1009,7 +1010,9 @@ function callSendAPI(channelId, messageData) {
 
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(channel, event) {
+    console.log('*** ' + channel + ' ****');
     console.log(appData);
+
     let accessToken = appData['line'][channel]['token'];
     request({
         url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
