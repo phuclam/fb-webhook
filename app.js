@@ -337,7 +337,6 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(req.body));
         appData = req.body;
-        console.log(appData);
         res.sendStatus(200);
     });
 
@@ -825,7 +824,6 @@ function receivedMessage(event) {
 }
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
-    console.log('fb channel id ' + channelId);
     let accessToken = appData['facebook'][channelId]['token'];
 
 console.log(recipientId);
@@ -1010,10 +1008,6 @@ function callSendAPI(channelId, messageData) {
 
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(channel, event) {
-    console.log('*** ' + channel + ' ****');
-    console.log(appData['line']);
-    console.log('*** ' + channel + ' ****');
-
     let accessToken = appData['line'][channel]['token'];
     request({
         url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
