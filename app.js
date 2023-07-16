@@ -337,6 +337,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         }
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(req.body));
         appData = req.body;
+        console.log(appData);
         res.sendStatus(200);
     });
 
