@@ -1009,6 +1009,7 @@ function callSendAPI(channelId, messageData) {
 
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(channel, event) {
+    console.log(appData);
     let accessToken = appData['line'][channel]['token'];
     request({
         url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
