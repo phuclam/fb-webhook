@@ -20,6 +20,8 @@ const CRM_VALIDATION_KEY = '+91cHDeZoCM7syHhMVMAqI7j4gHHFouz91XpS+TA3XQ=';
 const ADMIN_NAME = 'Admin';
 const ADMIN_ID = 'owner';
 const CONFIG_FILE = 'config.json';
+const CONFIG_PORTAL = 'portal.json';
+const PORTAL_PREFIX = 'portal_';
 
 // Facebook
 const VALIDATION_TOKEN = process.env.FB_VALIDATE_TOKEN;
@@ -33,9 +35,10 @@ if (!(VALIDATION_TOKEN && SERVER_URL && ALLOW_ORIGIN)) {
     console.error("Missing config values");
     process.exit(1);
 }
+const PORT = process.env.PORT || 5000;
 
 var app = express();
-var server = app.listen(5000);
+var server = app.listen(PORT);
 app.set('view engine', 'ejs');
 app.use(bodyParser.json({verify: verifyRequestSignature}));
 app.use(express.static('public'));
@@ -70,9 +73,30 @@ var recipientSchema = mongoose.Schema({
     last_message: {type: Date, default: Date.now}
 }).plugin(mongoosePaginate);
 
+var portalSessionSchema = mongoose.Schema({
+    recipient_id: {type: String, unique: true},
+    status: String,
+    start_date: {type: Date},
+    end_date: {type: Date}
+}).plugin(mongoosePaginate);
+
+var greetingLogSchema = mongoose.Schema({
+    recipient_id: {type: String, unique: true},
+    channel_id: String,
+    date: String,
+}).plugin(mongoosePaginate);
+
+var businessHourSchema = mongoose.Schema({
+    recipient_id: {type: String, unique: true},
+    channel_id: String,
+    date: String,
+}).plugin(mongoosePaginate);
+
 var Message = mongoose.model('messages', messageSchema);
 var Recipient = mongoose.model('recipients', recipientSchema);
-
+var PortalSession = mongoose.model('portal_session', portalSessionSchema);
+var GreetingLog = mongoose.model('greeting_logs', greetingLogSchema);
+var BusinessHourLog = mongoose.model('business_hour_logs', businessHourSchema);
 //Live chat
 const chatSDK = new ChatSDK({debug: false});
 
@@ -92,6 +116,8 @@ const chatSDK = new ChatSDK({debug: false});
 */
 var appConfig = fs.readFileSync(CONFIG_FILE);
 var appData = JSON.parse(appConfig);
+var portalConfig = fs.readFileSync(CONFIG_PORTAL);
+var portalGreeting = JSON.parse(portalConfig);
 
 mongoose.Promise = require('bluebird');
 mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
@@ -105,7 +131,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     }
 
     io.on('connection', (socket) => {
-        console.log('A new Client has just been connected');
+        console.log('A new client '+socket.id +' has just been connected');
         socket.on('disconnect', () => console.log('Client disconnected'));
         //Send message
         socket.on('sendMessage', function (type, channelId, recipientId, messageText) {
@@ -117,6 +143,8 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                 sendLiveChatTextMessage(recipientId, messageText).then(function () {
                     //do nothing.
                 });
+            } else if (type === 'Portal') {
+                portalReceiveMessage(socket, recipientId, messageText);
             }
         });
         //Send attachment from url
@@ -138,7 +166,43 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         //Update Status / Assigned to
         socket.on('updateAssignedStatus', function (recipientId, data) {
             io.emit('updateAssignedStatus', recipientId, data);
-        })
+        });
+
+        //Portal Connection
+        socket.on('portalRegister', function (portalId, portalName) {
+            const roomName = PORTAL_PREFIX + portalId;
+            if (!io.sockets.adapter.rooms[roomName]) {
+                //send greeting - create session
+                portalSendGreetings(socket, portalId, portalName);
+            }
+            socket.join(roomName);
+            socket.on('disconnect', function () {
+                setTimeout(function () {
+                    if (!io.sockets.adapter.rooms[roomName]) {
+                        portalEndChat(socket, roomName, portalId, portalName, 'User has left the chat.');
+                    }
+                }, 30 * 1000);
+            });
+
+            socket.on('endChat', function () {
+                portalEndChat(socket, roomName, portalId, portalName, 'User has ended the chat.');
+            });
+
+
+        });
+
+        socket.on('portalSendMessage', function (portalId, portalName, message) {
+            portalSendMessage(socket, portalId, portalName, message);
+        });
+
+        socket.on('portalSendNotify', function (portalId, portalName, message) {
+            portalSendMessage(socket, portalId, portalName, message, 'notify');
+        });
+
+        socket.on('portalSendCTA', function (portalId, portalName, message) {
+            portalSendCTA(socket, portalId, portalName, message);
+        });
+
     });
 
     /**
@@ -163,7 +227,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                         type: msg.type,
                         text: msg.type === 'text' || msg.type === 'notify' ? msg.message_text : '(' + msg.type + ')',
                         created: msg.created
-                    }
+                    };
                 }
                 output.push({
                     id: recipient.recipient_id,
@@ -191,7 +255,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                             type: msg.type,
                             text: msg.type === 'text' || msg.type === 'notify' ? msg.message_text : '(' + msg.type + ')',
                             created: msg.created
-                        }
+                        };
                     }
                     output.push({
                         id: recipient.recipient_id,
@@ -203,7 +267,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                         channel_id: recipient.channel_id
                     });
                 }
-                next = (page + 1) <= max ? (page + 1) : ''
+                next = (page + 1) <= max ? (page + 1) : '';
             }
 
             res.json({
@@ -274,8 +338,16 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(req.body));
         appData = req.body;
         res.sendStatus(200);
-    })
+    });
 
+    app.post('/api/portal', async function (req, res) {
+        if (!res.signature_matched) {
+            return res.sendStatus(403);
+        }
+        fs.writeFileSync(CONFIG_PORTAL, JSON.stringify(req.body));
+        portalGreeting = req.body;
+        res.sendStatus(200);
+    });
     /**
      * Line Webhook
      */
@@ -319,7 +391,7 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
                     chatSDK.init({
                         access_token: data.access_token
                     });
-                })
+                });
                 res.sendStatus(200);
             } else {
                 res.sendStatus(500);
@@ -571,12 +643,12 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
     });
 
     // for restart app
-    refreshLiveChatToken().then((data) => {
-        chatSDK.init({
-            access_token: data.access_token
-        });
-
-    });
+    // refreshLiveChatToken().then((data) => {
+    //     chatSDK.init({
+    //         access_token: data.access_token
+    //     });
+    //
+    // });
 });
 
 /*
@@ -585,9 +657,9 @@ mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
  *
  */
 app.get('/webhook', function (req, res) {
-    if (!res.signature_matched) {
-        return res.sendStatus(403);
-    }
+//    if (!res.signature_matched) {
+//        return res.sendStatus(403);
+//    }
     if (req.query['hub.mode'] === 'subscribe' &&
         req.query['hub.verify_token'] === VALIDATION_TOKEN) {
         res.status(200).send(req.query['hub.challenge']);
@@ -753,6 +825,8 @@ function receivedMessage(event) {
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
     let accessToken = appData['facebook'][channelId]['token'];
+
+console.log(recipientId);
     request({
         uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
         qs: {access_token: accessToken},
@@ -829,6 +903,10 @@ function retrieveMessageInfo(channelId, id, recipientId, owner) {
                                             data.from.id = ADMIN_ID;
                                         }
                                         io.emit('receivedMessage', channelId, recipientId, JSON.stringify(data), owner);
+                                        if (!owner) {
+                                            sendGreeting('Facebook', channelId, recipientId);
+                                        }
+
                                     }
                                 });
                             } else {
@@ -838,7 +916,7 @@ function retrieveMessageInfo(channelId, id, recipientId, owner) {
                     }
                 });
         } else {
-            console.log('Fail to retrieve user info', res.statusCode, res.statusMessage, body.error)
+            console.log('Fail to retrieve user info', res.statusCode, res.statusMessage, body.error);
         }
     });
 }
@@ -1032,8 +1110,10 @@ function receivedLineMessage(channel, event) {
                             });
                             break;
                         default:
-                            console.log('----Received a Line message: This file type ' + event.message.type + ' does not support yet.')
+                            console.log('----Received a Line message: This file type ' + event.message.type + ' does not support yet.');
                     }
+
+                    sendGreeting('Line', channel, event.source.userId);
                 } else {
                     console.log('------error recipient------');
                     console.log(error);
@@ -1198,7 +1278,7 @@ async function sendLiveChatTextMessage(recipientId, messageText) {
                 //do nothing
             });
         } catch (e) {
-            console.log(e)
+            console.log(e);
         }
     }
 }
@@ -1244,10 +1324,370 @@ async function sendLiveChatFileMessage(recipientId, url) {
     }));
 }
 
-
 /* *************END LIVE CHAT******************* */
+
+async function portalSendGreetings(socket, portalId, portalName) {
+    /*
+            var msgObj1 = {
+                type: 'text',
+                sender: ADMIN_NAME,
+                message: 'Hi ' + portalName,
+                created_time: new Date()
+            },
+            msgObj2 = {
+                type: 'text',
+                sender: ADMIN_NAME,
+                message: 'What can I help you with today? Click on a topic or ask me a question!',
+                created_time: new Date()
+            },
+            msgObj3 = {
+                type: 'link',
+                sender: ADMIN_NAME,
+                url: 'https://google.com',
+                text: 'What is the advanced network?',
+                created_time: new Date()
+            },
+            msgObj4 = {
+                type: 'link',
+                sender: ADMIN_NAME,
+                url: 'https://facebook.com',
+                text: 'How do I go live with a domain',
+                created_time: new Date()
+            },
+            msgObj5 = {
+                type: 'cta',
+                sender: ADMIN_NAME,
+                text: 'How to Quick Start?',
+                created_time: new Date()
+            };
+
+        setTimeout(function () {
+            socket.emit('portalReceivedMessage', msgObj1, true);
+        }, 1000);
+
+        setTimeout(function () {
+            socket.emit('portalReceivedMessage', msgObj2, true);
+        }, 2000);
+
+        setTimeout(function () {
+            socket.emit('portalReceivedMessage', msgObj3, true);
+        }, 3000);
+
+     */
+    let recipientId = PORTAL_PREFIX + portalId;
+    let session = await PortalSession.findOne({recipient_id: recipientId});
+    if (session === null || session.status !== 'open') {
+        // Create session
+        await PortalSession.findOneAndUpdate(
+            {recipient_id: recipientId},
+            {
+                status: 'open',
+                start_date: new Date(),
+                end_date: '',
+            },
+            {upsert: true, new: true, setDefaultsOnInsert: true},
+            function (error) {
+                if (!error) {
+                    console.log('create session for ', recipientId);
+                } else {
+                    console.log(error);
+                }
+            }
+        );
+
+        // Greeting Message
+        setTimeout(function () {
+            if (typeof portalGreeting.greeting !== 'undefined') {
+                portalGreeting.greeting.forEach(function (val) {
+                    var msgObj = {
+                        type: 'text',
+                        sender: ADMIN_NAME,
+                        message: val.replace('{name}', portalName),
+                        created_time: new Date()
+                    };
+                    socket.emit('portalReceivedMessage', msgObj, true);
+                });
+            }
+        }, 1000);
+
+        setTimeout(function () {
+            if (typeof portalGreeting.quicklinks !== 'undefined') {
+                for (var i in portalGreeting.quicklinks) {
+                    var msgObj = {
+                        type: 'cta',
+                        sender: ADMIN_NAME,
+                        text: i,
+                        created_time: new Date()
+                    };
+                    socket.emit('portalReceivedMessage', msgObj, true);
+                }
+            }
+        }, 2000);
+    }
+}
+
+//Portal send to CRM
+function portalSendMessage(socket, portalId, portalName, message, messageType) {
+    var recipientId = PORTAL_PREFIX + portalId;
+    var senderId, senderName;
+        senderId = recipientId;
+        senderName = portalName;
+
+    if (typeof messageType === 'undefined' || messageType === '') {
+        messageType = 'text';
+    }
+
+    Recipient.findOneAndUpdate(
+        {recipient_id: recipientId},
+        {
+            recipient_name: portalName,
+            type: 'Portal',
+            channel_id: 'portal',
+            last_message: new Date(),
+        },
+        {upsert: true, new: true, setDefaultsOnInsert: true},
+        function (error) {
+            if (!error) {
+                let msg = new Message({
+                    sender_id: senderId,
+                    recipient_id: recipientId,
+                    type: messageType,
+                    message_text: message
+                });
+                msg.save(function (err, data) {
+                    if (!err) {
+                        let obj = {
+                            type: messageType,
+                            sender: senderName,
+                            created_time: data.created,
+                            message: message,
+                            from: {
+                                name: senderName,
+                                id: senderId
+                            },
+                        };
+                        //send to portal
+                        io.in(recipientId).emit('portalReceivedMessage', obj, false);
+
+                        //send to crm
+                        if (typeof socket.handshake.query.enable_chat !== 'undefined' && socket.handshake.query.enable_chat === '1') {
+                            io.emit('receivedMessage', 'portal', senderId, JSON.stringify(obj), false);
+                        }
+                    }
+                });
+            }
+        });
+}
+
+//CRM send to Portal
+function portalReceiveMessage(socket, recipientId, message) {
+    var senderId = ADMIN_ID,
+        senderName = ADMIN_NAME;
+
+    Recipient.findOneAndUpdate(
+        {recipient_id: recipientId},
+        {
+            last_message: new Date(),
+        },
+        {upsert: true, new: true, setDefaultsOnInsert: true},
+        function (error, res) {
+            if (!error) {
+                let msg = new Message({
+                    sender_id: senderId,
+                    recipient_id: recipientId,
+                    type: 'text',
+                    message_text: message
+                });
+                msg.save(function (err, data) {
+                    if (!err) {
+                        let obj = {
+                            type: 'text',
+                            sender: senderName,
+                            created_time: data.created,
+                            message: message,
+                            from: {
+                                name: ADMIN_NAME,
+                                id: ADMIN_ID
+                            },
+                        };
+                        //send to portal
+                        io.in(recipientId).emit('portalReceivedMessage', obj, true);
+
+                        //send to crm
+                        io.emit('receivedMessage', 'portal', recipientId, JSON.stringify(obj), true);
+                    }
+                });
+            }
+        });
+}
+
+//Portal click on CTA
+function portalSendCTA(socket, portalId, portalName, message) {
+    var recipientId = PORTAL_PREFIX + portalId;
+    portalSendMessage(socket, portalId, portalName, message);
+    setTimeout(function() {
+        if (typeof portalGreeting.quicklinks[message] !== 'undefined') {
+            portalReceiveMessage(socket, recipientId, portalGreeting.quicklinks[message]);
+        }
+    }, 1000);
+}
+
+//Portal end chat
+async function portalEndChat(socket, roomName, portalId, portalName, message) {
+    let recipientId = PORTAL_PREFIX + portalId;
+    let session = await PortalSession.findOne({recipient_id: recipientId});
+    if (session && session.status === 'open') {
+        portalSendMessage(socket, portalId, portalName, message, 'notify');
+        setTimeout(async function() {
+            socket.leave(roomName);
+            socket.disconnect(true);
+            //close session
+            let endDate = new Date();
+            await PortalSession.findOneAndUpdate(
+                {recipient_id: recipientId},
+                {
+                    status: 'close',
+                    end_date: endDate,
+                },
+                {upsert: true, new: true, setDefaultsOnInsert: true},
+                function (error) {
+                    if (!error) {
+                        console.log('close session ', recipientId);
+                    }
+                }
+            );
+
+            // Create Note
+            const messages = await Message.find({
+                recipient_id: recipientId,
+                created: {
+                    $gte: session.start_date,
+                    $lte: endDate
+                }
+            }).sort('created');
+
+            request({
+                uri: portalGreeting.url + 'api/v1/create-note',
+                method: 'POST',
+                headers: {
+                    'x-webhook-signature': CRM_VALIDATION_KEY
+                },
+                json: {
+                    'contact_id' : portalId,
+                    'contact_name': portalName,
+                    'subject': 'Portal has received messages from ' + portalName,
+                    'message': messages,
+                    'parent_type': '',
+                    'parent_id': '',
+                }
+            }, function (error, response, body) {
+                if (!error && response.statusCode === 200) {
+                    console.log('Create Note success', body);
+                } else {
+                    console.error("Failed in creating note");//, response.statusCode, response.statusMessage, body.error);
+                }
+            });
+
+        }, 1000);
+    }
+}
+
+
+async function sendGreeting(from, channelId, recipientId) {
+
+    if (typeof appData['greeting'] === 'undefined' || appData['greeting'] === '') {
+        return;
+    }
+
+    let log = await GreetingLog.findOne({recipient_id: recipientId, channel_id: channelId, date: getDateFormat(new Date())});
+    if (log === null) {
+        await GreetingLog.findOneAndUpdate(
+            {recipient_id: recipientId, channel_id: channelId},
+            {
+                date: getDateFormat(new Date())
+            },
+            {upsert: true, new: true, setDefaultsOnInsert: true},
+            function (error) {
+                if (!error) {
+                    switch (from) {
+                        case 'Facebook':
+                            sendTextMessage(channelId, recipientId, appData['greeting']);
+                            break;
+                        case 'Line':
+                            sendLineTextMessage(channelId, recipientId, appData['greeting']);
+                            break;
+                    }
+                }
+            }
+        );
+    }
+
+    setTimeout(async function () {
+        if (outOfBusinessHours()) {
+
+            let logB = await BusinessHourLog.findOne({recipient_id: recipientId, channel_id: channelId, date: getDateFormat(new Date())});
+            if (logB === null) {
+                await BusinessHourLog.findOneAndUpdate(
+                    {recipient_id: recipientId, channel_id: channelId},
+                    {
+                        date: getDateFormat(new Date())
+                    },
+                    {upsert: true, new: true, setDefaultsOnInsert: true},
+                    function (error) {
+                        if (!error) {
+                            switch (from) {
+                                case 'Facebook':
+                                    sendTextMessage(channelId, recipientId, appData['outside_business']);
+                                    break;
+                                case 'Line':
+                                    sendLineTextMessage(channelId, recipientId, appData['outside_business']);
+                                    break;
+                            }
+                        }
+                    }
+                );
+            }
+        }
+    }, 500);
+}
+
+function outOfBusinessHours() {
+    let out = true;
+
+    if (typeof appData.outside_day !== 'undefined') {
+        const weekday = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+        let today = new Date(new Date().toLocaleString('sv-SE', {timeZone: appData.outside_timezone})),
+            strDay = weekday[today.getDay()],
+            hh = today.getHours(),
+            ii = today.getMinutes(),
+            ss = today.getSeconds();
+
+
+        if (hh < 10) hh = '0' + hh;
+        if (ii < 10) ii = '0' + ii;
+        if (ss < 10) ss = '0' + ss;
+        let strTime =  hh + ":" + ii + ":" + ss;
+
+        if (appData.outside_day.includes(strDay)) {
+            if (strTime >= appData.outside_starttime && strTime <= appData.outside_endtime) {
+                out = false;
+            }
+        }
+    }
+
+    return out;
+}
 
 function getFileName(path) {
     return path.replace(/^.*[\\\/]/, '');
+}
+
+function getDateFormat(date) {
+    let mm = date.getMonth() + 1;
+    let dd = date.getDate();
+    if (dd < 10) dd = '0' + dd;
+    if (mm < 10) mm = '0' + mm;
+
+    return date.getFullYear() + '-' + mm + '-' + dd;
 }
 module.exports = app;
