@@ -1172,6 +1172,7 @@ function sendLineTextMessage(channel, recipientId, messageText) {
 
 function sendLineImage(channel, recipientId, url, previewUrl) {
     let accessToken = appData['line'][channel]['token'];
+    let fileType = isImage(url) ? 'image' : 'video';
     Recipient.findOneAndUpdate(
         {recipient_id: recipientId},
         {
@@ -1189,7 +1190,7 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
                     },
                     body: JSON.stringify({
                         to: recipientId,
-                        messages: [{type: "image", originalContentUrl: url, previewImageUrl: previewUrl}]
+                        messages: [{type: fileType, originalContentUrl: url, previewImageUrl: previewUrl}]
                     })
                 }, function (err, res, body) {
                     let msg = new Message({
@@ -1198,7 +1199,7 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
                         type: 'attachment',
                         attachments: [
                             {
-                                type: 'image',
+                                type: fileType,
                                 url: url,
                                 preview_url: previewUrl,
                             }
@@ -1690,4 +1691,9 @@ function getDateFormat(date) {
 
     return date.getFullYear() + '-' + mm + '-' + dd;
 }
+
+function isImage(url) {
+    return /\.(jpg|jpeg|png|webp|avif|gif|svg)$/.test(url);
+}
+
 module.exports = app;
