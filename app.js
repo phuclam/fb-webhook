@@ -1173,6 +1173,8 @@ function sendLineTextMessage(channel, recipientId, messageText) {
 function sendLineImage(channel, recipientId, url, previewUrl) {
     let accessToken = appData['line'][channel]['token'];
     let fileType = isImage(url) ? 'image' : 'video';
+    console.log('Send line image/video', fileType);
+
     Recipient.findOneAndUpdate(
         {recipient_id: recipientId},
         {
@@ -1193,6 +1195,9 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
                         messages: [{type: fileType, originalContentUrl: url, previewImageUrl: previewUrl}]
                     })
                 }, function (err, res, body) {
+                    console.log('--------');
+                    console.log(err, res, body);
+                    console.log('--------');
                     let msg = new Message({
                         sender_id: ADMIN_ID,
                         recipient_id: recipientId,
