@@ -1121,9 +1121,9 @@ function receivedLineMessage(channel, event) {
                                     if (!fs.existsSync(dir)) {
                                         fs.mkdirSync(dir);
                                     }
-                                    fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
                                     let videoUrl = SERVER_URL + '/uploads/' + event.message.id + '.mp4';
-                                    let previewUrl =  SERVER_URL + '/uploads/' + event.message.id + '.png';
+                                    fs.writeFileSync(dir + '/' + event.message.id + '.mp4', Buffer.from(body));
+
                                     request({
                                         url: 'https://api-data.line.me/v2/bot/message/' + event.message.id + '/content/preview',
                                         method: 'GET',
@@ -1132,6 +1132,7 @@ function receivedLineMessage(channel, event) {
                                         },
                                         encoding: null
                                     }, function (er, res, bd) {
+                                        let previewUrl =  SERVER_URL + '/uploads/' + event.message.id + '.png';
                                         fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(bd));
                                         let msg = new Message({
                                             sender_id: event.source.userId,
