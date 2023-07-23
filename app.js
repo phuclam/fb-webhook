@@ -825,8 +825,6 @@ function receivedMessage(event) {
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
     let accessToken = appData['facebook'][channelId]['token'];
-
-console.log(recipientId);
     request({
         uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
         qs: {access_token: accessToken},
@@ -872,7 +870,7 @@ console.log(recipientId);
                                                 preview_url: i.image_data.preview_url
                                             });
                                         } else if (i.video_data) {
-                                            attachments.push({type: 'file', url: i.video_data.url, name: i.name})
+                                            attachments.push({type: 'video', url: i.video_data.url, name: i.name})
                                         } else {
                                             attachments.push({type: 'file', url: i.file_url, name: i.name});
                                         }
@@ -1109,8 +1107,67 @@ function receivedLineMessage(channel, event) {
                                 }
                             });
                             break;
+                        case 'video':
+                            request({
+                                url: 'https://api-data.line.me/v2/bot/message/' + event.message.id + '/content',
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': 'Bearer ' + accessToken
+                                },
+                                encoding: null
+                            }, function (error, response, body) {
+                                if (!error && response.statusCode === 200) {
+                                    console.log(response);
+                                    console.log('=====');
+                                    console.log(body)
+                                    /*let dir = './public/uploads';
+                                    if (!fs.existsSync(dir)) {
+                                        fs.mkdirSync(dir);
+                                    }
+                                    fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
+
+                                    let msg = new Message({
+                                        sender_id: event.source.userId,
+                                        recipient_id: event.source.userId,
+                                        type: 'attachment',
+                                        message_id: event.message.id,
+                                        attachments: [
+                                            {
+                                                type: 'image',
+                                                url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                                preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                            }
+                                        ]
+                                    });
+
+                                    msg.save(function (err, data) {
+                                        if (!err) {
+                                            let obj = {
+                                                from: {
+                                                    name: profile.displayName,
+                                                    id: profile.userId,
+                                                },
+                                                attachments: {
+                                                    data: [
+                                                        {
+                                                            image_data: {
+                                                                url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                                                preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                id: event.message.id,
+                                                created_time: data.created
+                                            };
+                                            io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
+                                        }
+                                    });*/
+                                }
+                            });
+                            break;
                         default:
-                            console.log('----Received a Line message: This file type ' + event.message.type + ' does not support yet.');
+                            console.log('----Received a Line message: This file type "' + event.message.type + '" does not support yet.');
                     }
 
                     sendGreeting('Line', channel, event.source.userId);
@@ -1195,9 +1252,6 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
                         messages: [{type: fileType, originalContentUrl: url, previewImageUrl: previewUrl}]
                     })
                 }, function (err, res, body) {
-                    console.log('--------');
-                    console.log(err, res, body);
-                    console.log('--------');
                     let msg = new Message({
                         sender_id: ADMIN_ID,
                         recipient_id: recipientId,
