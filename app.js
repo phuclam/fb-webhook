@@ -1000,6 +1000,7 @@ function callSendAPI(channelId, messageData) {
             }
         } else {
             console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
+            console.log('messsData', messageData);
         }
     });
 }
