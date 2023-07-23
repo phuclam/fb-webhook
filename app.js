@@ -1117,52 +1117,60 @@ function receivedLineMessage(channel, event) {
                                 encoding: null
                             }, function (error, response, body) {
                                 if (!error && response.statusCode === 200) {
-                                    console.log(response);
-                                    console.log('=====');
-                                    console.log(body)
-                                    /*let dir = './public/uploads';
+                                    let dir = './public/uploads';
                                     if (!fs.existsSync(dir)) {
                                         fs.mkdirSync(dir);
                                     }
                                     fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(body));
+                                    let videoUrl = SERVER_URL + '/uploads/' + event.message.id + '.mp4';
+                                    let previewUrl =  SERVER_URL + '/uploads/' + event.message.id + '.png';
+                                    request({
+                                        url: 'https://api-data.line.me/v2/bot/message/' + event.message.id + '/content/preview',
+                                        method: 'GET',
+                                        headers: {
+                                            'Authorization': 'Bearer ' + accessToken
+                                        },
+                                        encoding: null
+                                    }, function (er, res, bd) {
+                                        fs.writeFileSync(dir + '/' + event.message.id + '.png', Buffer.from(bd));
+                                        let msg = new Message({
+                                            sender_id: event.source.userId,
+                                            recipient_id: event.source.userId,
+                                            type: 'attachment',
+                                            message_id: event.message.id,
+                                            attachments: [
+                                                {
+                                                    type: 'video',
+                                                    url: videoUrl,
+                                                    preview_url: previewUrl,
+                                                }
+                                            ]
+                                        });
 
-                                    let msg = new Message({
-                                        sender_id: event.source.userId,
-                                        recipient_id: event.source.userId,
-                                        type: 'attachment',
-                                        message_id: event.message.id,
-                                        attachments: [
-                                            {
-                                                type: 'image',
-                                                url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                                preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                            }
-                                        ]
-                                    });
-
-                                    msg.save(function (err, data) {
-                                        if (!err) {
-                                            let obj = {
-                                                from: {
-                                                    name: profile.displayName,
-                                                    id: profile.userId,
-                                                },
-                                                attachments: {
-                                                    data: [
-                                                        {
-                                                            image_data: {
-                                                                url: SERVER_URL + '/uploads/' + event.message.id + '.png',
-                                                                preview_url: SERVER_URL + '/uploads/' + event.message.id + '.png',
+                                        msg.save(function (err, data) {
+                                            if (!err) {
+                                                let obj = {
+                                                    from: {
+                                                        name: profile.displayName,
+                                                        id: profile.userId,
+                                                    },
+                                                    attachments: {
+                                                        data: [
+                                                            {
+                                                                video_data: {
+                                                                    url: videoUrl,
+                                                                    preview_url: previewUrl,
+                                                                }
                                                             }
-                                                        }
-                                                    ]
-                                                },
-                                                id: event.message.id,
-                                                created_time: data.created
-                                            };
-                                            io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
-                                        }
-                                    });*/
+                                                        ]
+                                                    },
+                                                    id: event.message.id,
+                                                    created_time: data.created
+                                                };
+                                                io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
+                                            }
+                                        });
+                                    });
                                 }
                             });
                             break;
