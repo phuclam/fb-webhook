@@ -952,7 +952,7 @@ function sendAttachment(channelId, recipientId, url, type) {
             }
         }
     };
-
+console.log('send attachment', messageData);
     callSendAPI(channelId, messageData);
 }
 
