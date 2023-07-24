@@ -1668,7 +1668,6 @@ async function sendGreeting(from, channelId, recipientId) {
     }
 
     let log = await GreetingLog.findOne({recipient_id: recipientId, channel_id: channelId, date: getDateFormat(new Date())});
-    console.log('log - ', from, log);
     if (log === null) {
         await GreetingLog.findOneAndUpdate(
             {recipient_id: recipientId, channel_id: channelId},
@@ -1680,11 +1679,9 @@ async function sendGreeting(from, channelId, recipientId) {
                 if (!error) {
                     switch (from) {
                         case 'Facebook':
-                            console.log('sent greeting Facebook');
                             sendTextMessage(channelId, recipientId, appData['greeting']);
                             break;
                         case 'Line':
-                            console.log('sent greeting Line')
                             sendLineTextMessage(channelId, recipientId, appData['greeting']);
                             break;
                     }
@@ -1697,8 +1694,7 @@ async function sendGreeting(from, channelId, recipientId) {
         if (outOfBusinessHours()) {
 
             let logB = await BusinessHourLog.findOne({recipient_id: recipientId, channel_id: channelId, date: getDateFormat(new Date())});
-            console.log('logB - ', from, logB);
-            if (logB === null) {
+            //if (logB === null) { // Comment out this because we want to send every time receive msg
                 await BusinessHourLog.findOneAndUpdate(
                     {recipient_id: recipientId, channel_id: channelId},
                     {
@@ -1709,18 +1705,16 @@ async function sendGreeting(from, channelId, recipientId) {
                         if (!error) {
                             switch (from) {
                                 case 'Facebook':
-                                    console.log('sent BH Facebook');
                                     sendTextMessage(channelId, recipientId, appData['outside_business']);
                                     break;
                                 case 'Line':
-                                    console.log('sent BH Line');
                                     sendLineTextMessage(channelId, recipientId, appData['outside_business']);
                                     break;
                             }
                         }
                     }
                 );
-            }
+            //}
         }
     }, 500);
 }
