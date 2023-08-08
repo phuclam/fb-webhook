@@ -825,6 +825,8 @@ function receivedMessage(event) {
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
     let accessToken = appData['facebook'][channelId]['token'];
+    console.log('chanelid', channelId);
+    console.log('appdata', appData['facebook']);
     request({
         uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
         qs: {access_token: accessToken},
