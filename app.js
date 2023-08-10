@@ -825,8 +825,6 @@ function receivedMessage(event) {
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
     let accessToken = appData['facebook'][channelId]['token'];
-    console.log('chanelid', channelId);
-    console.log('appdata', appData['facebook']);
     request({
         uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
         qs: {access_token: accessToken},
@@ -1240,8 +1238,6 @@ function sendLineTextMessage(channel, recipientId, messageText) {
 function sendLineImage(channel, recipientId, url, previewUrl) {
     let accessToken = appData['line'][channel]['token'];
     let fileType = isImage(url) ? 'image' : 'video';
-    console.log('Send line image/video', fileType);
-
     Recipient.findOneAndUpdate(
         {recipient_id: recipientId},
         {
@@ -1277,6 +1273,22 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
 
                     msg.save(function (err, data) {
                         if (!err) {
+                            let data = {};
+                            if (fileType === 'image') {
+                                data = {
+                                    image_data: {
+                                        url: url,
+                                        preview_url: previewUrl,
+                                    }
+                                };
+                            } else if (fileType === 'video') {
+                                data = {
+                                    video_data: {
+                                        url: url,
+                                        preview_url: previewUrl,
+                                    }
+                                };
+                            }
                             let obj = {
                                 from: {
                                     name: ADMIN_NAME,
@@ -1284,12 +1296,7 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
                                 },
                                 attachments: {
                                     data: [
-                                        {
-                                            image_data: {
-                                                url: url,
-                                                preview_url: previewUrl,
-                                            }
-                                        }
+                                        data
                                     ]
                                 },
                                 id: data.message_id,
