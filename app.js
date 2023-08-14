@@ -825,6 +825,7 @@ function receivedMessage(event) {
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
     if (typeof appData['facebook'][channelId] === 'undefined') {
+        console.log('This channel ' + channelId + 'has not been set up yet.')
         return false;
     }
     let accessToken = appData['facebook'][channelId]['token'];
