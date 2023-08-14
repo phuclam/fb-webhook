@@ -1006,9 +1006,6 @@ function callSendAPI(channelId, messageData) {
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(channel, event) {
     let accessToken = appData['line'][channel]['token'];
-    console.log('---receivedLineMessage-----')
-    console.log(event);
-    console.log('----end receivedLineMessage -----');
     request({
         url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
         method: 'GET',
@@ -1173,6 +1170,63 @@ function receivedLineMessage(channel, event) {
                                                 io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
                                             }
                                         });
+                                    });
+                                }
+                            });
+                            break;
+                        case 'file':
+                            request({
+                                url: 'https://api-data.line.me/v2/bot/message/' + event.message.id + '/content',
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': 'Bearer ' + accessToken
+                                },
+                                encoding: null
+                            }, function (error, response, body) {
+                                if (!error && response.statusCode === 200) {
+                                    let dir = './public/uploads';
+                                    if (!fs.existsSync(dir)) {
+                                        fs.mkdirSync(dir);
+                                    }
+                                    let fileUrl = SERVER_URL + '/uploads/' + event.message.fileName;
+                                    fs.writeFileSync(dir + '/' + event.message.fileName, Buffer.from(body));
+console.log('line fileUrl', fileUrl);
+                                    let msg = new Message({
+                                        sender_id: event.source.userId,
+                                        recipient_id: event.source.userId,
+                                        type: 'attachment',
+                                        message_id: event.message.id,
+                                        attachments: [
+                                            {
+                                                type: 'file',
+                                                url: fileUrl,
+                                                name: event.message.fileName
+                                            }
+                                        ]
+                                    });
+
+                                    msg.save(function (err, data) {
+                                        if (!err) {
+                                            let obj = {
+                                                from: {
+                                                    name: profile.displayName,
+                                                    id: profile.userId,
+                                                },
+                                                attachments: {
+                                                    data: [
+                                                        {
+                                                            file: {
+                                                                url: videoUrl,
+                                                                name: event.message.fileName,
+                                                            }
+                                                        }
+                                                    ]
+                                                },
+                                                id: event.message.id,
+                                                created_time: data.created
+                                            };
+                                            io.emit('receivedMessage', channel, event.source.userId, JSON.stringify(obj), false);
+                                        }
                                     });
                                 }
                             });
