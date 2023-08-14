@@ -824,6 +824,9 @@ function receivedMessage(event) {
 }
 
 function retrieveMessageInfo(channelId, id, recipientId, owner) {
+    if (typeof appData['facebook'][channelId] === 'undefined') {
+        return false;
+    }
     let accessToken = appData['facebook'][channelId]['token'];
     request({
         uri: 'https://graph.facebook.com/v5.0/' + recipientId + '?fields=name',
