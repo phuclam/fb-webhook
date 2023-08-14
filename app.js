@@ -1190,7 +1190,6 @@ function receivedLineMessage(channel, event) {
                                     }
                                     let fileUrl = SERVER_URL + '/uploads/' + event.message.fileName;
                                     fs.writeFileSync(dir + '/' + event.message.fileName, Buffer.from(body));
-console.log('line fileUrl', fileUrl);
                                     let msg = new Message({
                                         sender_id: event.source.userId,
                                         recipient_id: event.source.userId,
@@ -1215,10 +1214,9 @@ console.log('line fileUrl', fileUrl);
                                                 attachments: {
                                                     data: [
                                                         {
-                                                            file: {
-                                                                url: fileUrl,
-                                                                name: event.message.fileName,
-                                                            }
+                                                            file_url: fileUrl,
+                                                            name: event.message.fileName,
+
                                                         }
                                                     ]
                                                 },
