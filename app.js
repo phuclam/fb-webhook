@@ -1006,6 +1006,9 @@ function callSendAPI(channelId, messageData) {
 /* ****************LINE EVENT******************* */
 function receivedLineMessage(channel, event) {
     let accessToken = appData['line'][channel]['token'];
+    console.log('---receivedLineMessage-----')
+    console.log(event);
+    console.log('----end receivedLineMessage -----');
     request({
         url: 'https://api.line.me/v2/bot/profile/' + event.source.userId,
         method: 'GET',
@@ -1273,16 +1276,16 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
 
                     msg.save(function (err, data) {
                         if (!err) {
-                            let data = {};
+                            let mediaData = {};
                             if (fileType === 'image') {
-                                data = {
+                                mediaData = {
                                     image_data: {
                                         url: url,
                                         preview_url: previewUrl,
                                     }
                                 };
                             } else if (fileType === 'video') {
-                                data = {
+                                mediaData = {
                                     video_data: {
                                         url: url,
                                         preview_url: previewUrl,
@@ -1296,7 +1299,7 @@ function sendLineImage(channel, recipientId, url, previewUrl) {
                                 },
                                 attachments: {
                                     data: [
-                                        data
+                                        mediaData
                                     ]
                                 },
                                 id: data.message_id,
