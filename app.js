@@ -1216,7 +1216,7 @@ console.log('line fileUrl', fileUrl);
                                                     data: [
                                                         {
                                                             file: {
-                                                                url: videoUrl,
+                                                                url: fileUrl,
                                                                 name: event.message.fileName,
                                                             }
                                                         }
